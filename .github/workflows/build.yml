@@ -30,7 +30,13 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
-      - name: Build and Publish
-        run: npm run build
+      - name: Type Check
+        run: npx vue-tsc -b
+
+      - name: Build Frontend
+        run: npx vite build
+
+      - name: Package and Publish to GitHub Releases
+        run: npx electron-builder --publish always
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
