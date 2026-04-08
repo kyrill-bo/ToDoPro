@@ -20,7 +20,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import BoardView from '@/components/BoardView.vue'
 
 const store = useTodoStore()
-const { addProject, updateProject, addBoard } = store
+const { addProject, updateProject, addBoard, updateBoard } = store
 
 type View = 'projects' | 'project-detail' | 'board-detail'
 
@@ -43,6 +43,7 @@ const editingProjectId = ref<string | null>(null)
 
 const newBoardTitle = ref('')
 const isBoardDialogOpen = ref(false)
+const editingBoardId = ref<string | null>(null)
 
 const currentProject = computed(() => {
   return store.projects.find(p => p.id === selectedProjectId.value)
@@ -89,9 +90,26 @@ const openNewProject = () => {
 
 const handleAddBoard = () => {
   if (!newBoardTitle.value || !selectedProjectId.value) return
-  addBoard(selectedProjectId.value, newBoardTitle.value)
+  if (editingBoardId.value) {
+    updateBoard(editingBoardId.value, newBoardTitle.value)
+  } else {
+    addBoard(selectedProjectId.value, newBoardTitle.value)
+  }
   newBoardTitle.value = ''
   isBoardDialogOpen.value = false
+  editingBoardId.value = null
+}
+
+const openEditBoard = (board: any) => {
+  newBoardTitle.value = board.title
+  editingBoardId.value = board.id
+  isBoardDialogOpen.value = true
+}
+
+const openNewBoard = () => {
+  newBoardTitle.value = ''
+  editingBoardId.value = null
+  isBoardDialogOpen.value = true
 }
 
 const navigateToProject = (id: string) => {
@@ -362,20 +380,20 @@ const getFirstLetter = (title: string) => {
         <div v-if="currentView === 'project-detail'" class="relative z-10 no-drag">
           <Dialog v-model:open="isBoardDialogOpen">
             <DialogTrigger as-child>
-              <Button class="gap-2 bg-white text-black hover:bg-white/90 font-bold rounded-full px-6">
+              <Button class="gap-2 bg-white text-black hover:bg-white/90 font-bold rounded-full px-6" @click="openNewBoard">
                 <Plus class="w-4 h-4" />
                 NEUES BOARD
               </Button>
             </DialogTrigger>
             <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
               <DialogHeader>
-                <DialogTitle>BOARD ERSTELLEN</DialogTitle>
+                <DialogTitle>{{ editingBoardId ? 'BOARD BEARBEITEN' : 'BOARD ERSTELLEN' }}</DialogTitle>
               </DialogHeader>
               <div class="space-y-4 py-4">
                 <Input v-model="newBoardTitle" placeholder="Name..." class="bg-white/5 border-white/10 h-12" />
               </div>
               <DialogFooter>
-                <Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">ERSTELLEN</Button>
+                <Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -453,8 +471,12 @@ const getFirstLetter = (title: string) => {
                     <MoreVertical class="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white">
-                  <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer" @click="store.deleteBoard(board.id)">
+                <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2">
+                  <DropdownMenuItem @click="openEditBoard(board)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md">
+                    <Settings class="w-4 h-4 mr-2 text-white/40" />
+                    Bearbeiten
+                  </DropdownMenuItem>
+                  <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteBoard(board.id)">
                     <Trash2 class="w-4 h-4 mr-2" />
                     Löschen
                   </DropdownMenuItem>

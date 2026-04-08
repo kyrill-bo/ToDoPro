@@ -123,6 +123,13 @@ export const useTodoStore = defineStore('todo', () => {
     boards.value = boards.value.filter(b => b.id !== id);
   }
 
+  function updateBoard(id: string, title: string) {
+    const board = boards.value.find(b => b.id === id);
+    if (board) {
+      board.title = title;
+    }
+  }
+
   function getBoardById(id: string) {
     return boards.value.find(b => b.id === id);
   }
@@ -240,6 +247,7 @@ export const useTodoStore = defineStore('todo', () => {
     updateProject,
     addBoard,
     deleteBoard,
+    updateBoard,
     getBoardById,
     getBoardsByProject,
     addColumn,

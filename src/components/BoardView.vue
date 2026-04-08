@@ -193,6 +193,7 @@ const colors = [
                   <h3 
                     v-else 
                     class="text-xs font-black uppercase tracking-widest truncate cursor-pointer hover:text-white transition-colors"
+                    @mousedown.stop
                     @click="editingColumnId = column.id; editingColumnTitle = column.title"
                   >
                     {{ column.title }}
@@ -205,6 +206,10 @@ const colors = [
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" class="bg-black/90 backdrop-blur-xl border-white/10 text-white p-2">
+                    <DropdownMenuItem class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md no-drag" @click="editingColumnId = column.id; editingColumnTitle = column.title">
+                      <Type class="w-4 h-4 mr-2 text-white/40" />
+                      Umbenennen
+                    </DropdownMenuItem>
                     <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md no-drag" @click="store.deleteColumn(boardId, column.id)">
                       <Trash2 class="w-4 h-4 mr-2" />
                       Spalte löschen
