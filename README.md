@@ -6,7 +6,7 @@
 
 **ToDo Pro** ist eine hochperformante, ästhetische Kanban-Anwendung für den Desktop. Sie kombiniert modernes **High-Tech Design** mit maximaler Benutzerfreiheit und lokaler Datensouveränität.
 
-![ToDo Pro Preview](https://via.placeholder.com/1200x800/000000/FFFFFF?text=ToDo+Pro+Kanban+Board)
+![ToDo Pro Preview](preview.png)
 
 ## ✨ Features
 
@@ -37,8 +37,8 @@
 ### Lokale Entwicklung
 1. Repository klonen:
    ```bash
-   git clone https://github.com/DEIN_USERNAME/todo-pro.git
-   cd todo-pro
+   git clone https://github.com/kyrill-bo/ToDoPro.git
+   cd ToDoPro
    ```
 2. Abhängigkeiten installieren:
    ```bash
