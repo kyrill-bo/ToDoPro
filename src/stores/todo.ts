@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, watch } from 'vue';
-import type { Project, Board, Card } from '@/types';
+import type { Project, Board, Card, ChecklistItem, Tag } from '@/types';
 
 // Detect if running in Electron
 const isElectron = typeof window !== 'undefined' && 
@@ -20,11 +20,9 @@ export const useTodoStore = defineStore('todo', () => {
       let data;
       
       if (isElectron) {
-        // Direct file access via Electron IPC
         const { ipcRenderer } = (window as any).require('electron');
         data = await ipcRenderer.invoke('get-data');
       } else {
-        // Fallback to Express Server API
         const res = await fetch('/api/data');
         data = await res.json();
       }
@@ -71,12 +69,10 @@ export const useTodoStore = defineStore('todo', () => {
     }
   }
 
-  // Persist on changes
   watch([projects, boards], () => {
     saveData();
   }, { deep: true });
 
-  // Initial load
   loadData();
 
   // Project Actions
@@ -178,6 +174,8 @@ export const useTodoStore = defineStore('todo', () => {
           title,
           description,
           comments: [],
+          checklists: [],
+          tags: [],
           color: 'transparent',
           createdAt: Date.now(),
         });

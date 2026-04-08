@@ -1,3 +1,15 @@
+export interface ChecklistItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface Tag {
+  id: string;
+  text: string;
+  color: string;
+}
+
 export interface Comment {
   id: string;
   text: string;
@@ -11,6 +23,8 @@ export interface Card {
   color?: string;
   dueDate?: string;
   comments: Comment[];
+  checklists: ChecklistItem[];
+  tags: Tag[];
   createdAt: number;
 }
 
