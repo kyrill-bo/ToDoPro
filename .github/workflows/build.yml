@@ -2,12 +2,15 @@ name: Build and Release ToDo Pro
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'v*' # Trigger build on version tags like v1.0.0
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  build:
+  release:
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -31,5 +34,3 @@ jobs:
         run: npm run build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # For macOS code signing, you would normally need CSC_LINK and CSC_KEY_PASSWORD
-          # Without them, it will create an unsigned build
