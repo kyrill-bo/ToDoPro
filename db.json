@@ -1,0 +1,68 @@
+{
+  "projects": [
+    {
+      "id": "bb6a159f-dee5-45ee-b0b5-5039922f415f",
+      "title": "Mein erstes Projekt",
+      "description": "Dies ist ein Beispielprojekt",
+      "createdAt": 1775645609619
+    },
+    {
+      "id": "82b41f8d-3eea-4d7f-8eaf-584e433104b1",
+      "title": "test",
+      "description": "",
+      "createdAt": 1775645632533
+    }
+  ],
+  "boards": [
+    {
+      "id": "ec0a1293-2c7b-4ebf-9342-7a878cae0ddd",
+      "title": "Entwicklung",
+      "projectId": "bb6a159f-dee5-45ee-b0b5-5039922f415f",
+      "columns": [
+        {
+          "id": "b5d634b9-c239-4e29-aa02-c09efa8824c9",
+          "title": "To Do",
+          "cards": [
+            {
+              "id": "18957286-6d06-49ad-922c-b7de092e04c8",
+              "title": "shadcn-vue einrichten",
+              "comments": [],
+              "color": "#ffffff",
+              "createdAt": 1775645609619
+            },
+            {
+              "id": "6fc8f941-234e-49f6-a216-bcecb3f573d6",
+              "title": "Kanban Logik implementieren",
+              "comments": [],
+              "color": "#ffffff",
+              "createdAt": 1775645609619
+            }
+          ]
+        },
+        {
+          "id": "8876afa3-1745-424c-8171-b8823b0f6c80",
+          "title": "In Progress",
+          "cards": [
+            {
+              "id": "a193e74f-1712-4441-aa0c-2d8c7f3c323f",
+              "title": "Verschönerungen vornehmen",
+              "comments": [],
+              "color": "#ffffff",
+              "createdAt": 1775645609620
+            }
+          ]
+        },
+        {
+          "id": "0a342092-e621-410d-8be5-36f929e8944d",
+          "title": "Done",
+          "cards": []
+        },
+        {
+          "id": "bea6cfbd-2140-419a-911b-b0313058ef0e",
+          "title": "test",
+          "cards": []
+        }
+      ]
+    }
+  ]
+}
