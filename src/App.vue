@@ -23,6 +23,7 @@ import { VisuallyHidden } from 'reka-ui'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import BoardView from '@/components/BoardView.vue'
+import TargetCursor from '@/components/TargetCursor.vue'
 
 const store = useTodoStore()
 const { addProject, updateProject, addBoard, updateBoard } = store
@@ -242,7 +243,9 @@ const vFocus = {
 </script>
 
 <template>
-  <div class="flex h-screen bg-black overflow-hidden text-white">
+  <div class="flex h-screen bg-black overflow-hidden text-white cursor-none">
+    <TargetCursor :spin-duration="5" :hover-duration="0.3" />
+    
     <!-- Window Drag Handle (for Electron) -->
     <div class="fixed top-0 left-0 right-0 h-10 z-[100] pointer-events-none">
       <div class="w-full h-full pointer-events-auto drag-region"></div>
@@ -436,7 +439,14 @@ const vFocus = {
       <div class="flex-1 relative overflow-hidden" :class="currentView !== 'board-detail' && 'overflow-auto p-8'">
         <!-- Projects View -->
         <div v-if="currentView === 'projects'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card v-for="project in store.projects" :key="project.id" class="hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)] transition-all cursor-pointer bg-white/[0.03] border-white/5 backdrop-blur-md hover:bg-white/[0.06] hover:scale-[1.02] group border-t-0" @click="navigateToProject(project.id)"><CardHeader class="pb-4"><div class="flex justify-between items-start mb-2"><div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg">{{ getFirstLetter(project.title) }}</div><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditProject(project)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteProject(project.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black tracking-tight uppercase italic text-white">{{ project.title }}</CardTitle><CardDescription v-if="project.description" class="text-white/30 text-xs mt-2 line-clamp-2 leading-relaxed">{{ project.description }}</CardDescription></CardHeader><CardContent><div class="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] flex items-center gap-2">{{ store.getBoardsByProject(project.id).length }} Boards</div></CardContent></Card>
+          <Card 
+            v-for="project in store.projects" 
+            :key="project.id"
+            class="project-card hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)] transition-all cursor-pointer bg-white/[0.03] border-white/5 backdrop-blur-md hover:bg-white/[0.06] hover:scale-[1.02] group border-t-0"
+            @click="navigateToProject(project.id)"
+          >
+            <CardHeader class="pb-4">
+<div class="flex justify-between items-start mb-2"><div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg">{{ getFirstLetter(project.title) }}</div><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditProject(project)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteProject(project.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black tracking-tight uppercase italic text-white">{{ project.title }}</CardTitle><CardDescription v-if="project.description" class="text-white/30 text-xs mt-2 line-clamp-2 leading-relaxed">{{ project.description }}</CardDescription></CardHeader><CardContent><div class="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] flex items-center gap-2">{{ store.getBoardsByProject(project.id).length }} Boards</div></CardContent></Card>
           <button class="h-auto aspect-square border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 transition-all group no-drag" @click="isProjectDialogOpen = true"><div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 transition-transform"><Plus class="w-6 h-6" /></div><span class="text-white/20 text-xs font-black tracking-[0.2em] uppercase">Neu</span></button>
         </div>
 
@@ -483,6 +493,12 @@ html, body, #app {
   background-color: #000;
   color: #fff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  cursor: none;
+}
+
+/* Ensure all interactive elements also have no cursor */
+button, a, input, textarea, [role="button"], .cursor-pointer {
+  cursor: none !important;
 }
 
 /* Transitions for Layout */

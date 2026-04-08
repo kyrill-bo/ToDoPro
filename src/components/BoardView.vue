@@ -219,8 +219,9 @@ const vFocus = {
               <ScrollArea class="flex-1 px-3 py-4">
                 <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-4 min-h-[150px] pb-6" ghost-class="opacity-20">
                   <template #item="{ element: card }">
-                    <Card class="card-item group relative transition-all cursor-pointer overflow-hidden border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 hover:scale-[1.02] active:scale-[0.98]" :style="{ borderLeftColor: card.color && card.color !== 'transparent' ? card.color : '', borderLeftWidth: card.color && card.color !== 'transparent' ? '4px' : '1px' }" @click="openCardDetail(card, column.id)">
+                    <Card class="card-item group relative transition-all cursor-pointer overflow-hidden border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 hover:scale-[1.02] active:scale-[0.98] pointer-events-auto" :style="{ borderLeftColor: card.color && card.color !== 'transparent' ? card.color : '', borderLeftWidth: card.color && card.color !== 'transparent' ? '4px' : '1px' }" @click="openCardDetail(card, column.id)">
                       <CardHeader class="p-4 pb-2 space-y-2">
+
                         <div v-if="card.tags?.length" class="flex flex-wrap gap-1">
                           <div v-for="tag in card.tags" :key="tag.id" class="h-1 w-4 rounded-full" :style="{ backgroundColor: tag.color }"></div>
                         </div>
