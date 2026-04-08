@@ -13,6 +13,7 @@
   "build": {
     "appId": "com.bobrashov.todo",
     "productName": "ToDo Pro",
+    "publish": [{ "provider": "github" }],
     "directories": {
       "output": "release"
     },
