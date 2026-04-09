@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import type { Project, Board, Column, Card } from '@/types'
+import type { Project, Board, Card } from '@/types'
 
 export const useTodoStore = defineStore('todo', () => {
   const projects = ref<Project[]>([])
