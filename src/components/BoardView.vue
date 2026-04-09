@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import draggable from 'vuedraggable'
 import { 
@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { VisuallyHidden } from 'reka-ui'
 import { Separator } from '@/components/ui/separator'
-import type { Card as CardType, Tag } from '@/types'
+import type { Card as CardType } from '@/types'
 
 const props = defineProps<{
   boardId: string

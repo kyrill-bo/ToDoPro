@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import { 
   Settings, 
@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Search,
   Command,
-  ChevronRight,
   Layout
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
