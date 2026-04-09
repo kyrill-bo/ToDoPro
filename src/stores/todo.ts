@@ -30,7 +30,8 @@ export const useTodoStore = defineStore('todo', () => {
       projects.value = data.projects || [];
       boards.value = data.boards || [];
       
-      if (projects.value.length === 0) {
+      // ONLY init sample data if the database is truly empty
+      if (projects.value.length === 0 && boards.value.length === 0) {
         initSampleData();
       }
       

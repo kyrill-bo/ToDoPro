@@ -217,9 +217,28 @@ const triggerImport = () => {
 
 onMounted(() => {
   const handleKeyDown = (e: KeyboardEvent) => {
+    const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+    if (isInput) return
+
+    // CMD+K for search
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
       e.preventDefault()
       isSearchOpen.value = true
+      return
+    }
+
+    // N for New Project/Board
+    if (e.key === 'n' || e.key === 'N') {
+      e.preventDefault()
+      if (currentView.value === 'projects') openNewProject()
+      if (currentView.value === 'project-detail') openNewBoard()
+    }
+
+    // Backspace/Esc for Back
+    if (e.key === 'Backspace' || e.key === 'Escape') {
+      if (!isProjectDialogOpen.value && !isBoardDialogOpen.value && !isSearchOpen.value && !isSettingsOpen.value) {
+        goBack()
+      }
     }
   }
   window.addEventListener('keydown', handleKeyDown)
@@ -428,45 +447,27 @@ const vFocus = {
         
         <!-- Header Actions (Icons Only) -->
         <div class="relative z-10 no-drag flex items-center gap-2">
-          <!-- Add Project Button (Only in Dashboard) -->
-          <Dialog v-if="currentView === 'projects'" v-model:open="isProjectDialogOpen">
-            <DialogTrigger as-child>
-              <Button variant="ghost" size="icon" class="w-10 h-10 rounded-full hover:bg-white/10 text-white" @click="openNewProject">
-                <Plus class="w-6 h-6" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
-              <DialogHeader>
-                <DialogTitle>{{ editingProjectId ? 'Projekt bearbeiten' : 'Neues Projekt' }}</DialogTitle>
-                <DialogDescription class="text-white/40">Verwalte deine Aufgaben mit Stil.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-4">
-                <div class="space-y-2">
-                  <label class="text-xs font-semibold text-white/40">TITEL</label>
-                  <Input v-model="newProjectTitle" v-focus placeholder="Projektname..." class="bg-white/5 border-white/10 h-11" />
-                </div>
-                <div class="space-y-2">
-                  <label class="text-xs font-semibold text-white/40">BESCHREIBUNG</label>
-                  <Input v-model="newProjectDescription" placeholder="Kurze Info..." class="bg-white/5 border-white/10 h-11" />
-                </div>
-              </div>
-              <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddProject">{{ editingProjectId ? 'Speichern' : 'Projekt erstellen' }}</Button></DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <!-- Add Project Trigger -->
+          <Button 
+            v-if="currentView === 'projects'"
+            variant="ghost" 
+            size="icon" 
+            class="w-10 h-10 rounded-full hover:bg-white/10 text-white" 
+            @click="openNewProject"
+          >
+            <Plus class="w-6 h-6" />
+          </Button>
 
-          <!-- Add Board Button (Only in Project Detail) -->
-          <Dialog v-if="currentView === 'project-detail'" v-model:open="isBoardDialogOpen">
-            <DialogTrigger as-child>
-              <Button variant="ghost" size="icon" class="w-10 h-10 rounded-full hover:bg-white/10 text-white" @click="openNewBoard">
-                <Plus class="w-6 h-6" />
-              </Button>
-            </DialogTrigger>
-            <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
-              <DialogHeader><DialogTitle>{{ editingBoardId ? 'BOARD BEARBEITEN' : 'BOARD ERSTELLEN' }}</DialogTitle></DialogHeader>
-              <div class="space-y-4 py-4"><Input v-model="newBoardTitle" v-focus placeholder="Name..." class="bg-white/5 border-white/10 h-12" /></div>
-              <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button></DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <!-- Add Board Trigger -->
+          <Button 
+            v-if="currentView === 'project-detail'"
+            variant="ghost" 
+            size="icon" 
+            class="w-10 h-10 rounded-full hover:bg-white/10 text-white" 
+            @click="openNewBoard"
+          >
+            <Plus class="w-6 h-6" />
+          </Button>
         </div>
       </header>
 
@@ -639,14 +640,44 @@ const vFocus = {
 
     <!-- Global Search Dialog -->
     <Dialog v-model:open="isSearchOpen">
-      <DialogContent class="max-w-2xl bg-black/95 backdrop-blur-3xl border-white/10 text-white p-0 overflow-hidden top-[20%] translate-y-0">
+      <DialogContent class="max-w-2xl bg-black/95 backdrop-blur-3xl border border-white/30 text-white p-0 overflow-hidden top-[20%] translate-y-0 shadow-[0_0_100px_rgba(0,0,0,1)]">
         <VisuallyHidden><DialogTitle>Globale Suche</DialogTitle><DialogDescription>Suche nach Projekten, Boards oder Karten</DialogDescription></VisuallyHidden>
-        <div class="p-4 border-b border-white/10 flex items-center gap-3"><Search class="w-5 h-5 text-white/20" /><input v-model="searchQuery" v-focus placeholder="Suche nach Projekten, Boards oder Karten..." class="flex-1 bg-transparent border-none outline-none text-lg text-white placeholder:text-white/20" /></div>
+        <div class="p-4 border-b border-white/20 flex items-center gap-3"><Search class="w-5 h-5 text-white/40" /><input v-model="searchQuery" v-focus placeholder="Suche nach Projekten, Boards oder Karten..." class="flex-1 bg-transparent border-none outline-none text-lg text-white placeholder:text-white/30" /></div>
         <ScrollArea class="max-h-[400px]">
           <div v-if="searchQuery && searchResults.length > 0" class="p-2"><button v-for="result in searchResults" :key="result.id" class="w-full p-3 rounded-xl flex flex-col items-start gap-1 hover:bg-white/5 transition-all text-left group" @click="navigateToResult(result)"><div class="flex items-center justify-between w-full"><span class="text-sm font-bold text-white/80 group-hover:text-white">{{ result.title }}</span><span class="text-[10px] font-black uppercase tracking-widest text-white/10">{{ result.type }}</span></div><span class="text-[10px] text-white/30 uppercase font-medium">{{ result.parent }}</span></button></div>
           <div v-else-if="searchQuery" class="p-12 text-center"><p class="text-white/20 text-sm font-medium italic">Keine Ergebnisse für "{{ searchQuery }}" gefunden.</p></div>
           <div v-else class="p-12 text-center"><p class="text-white/20 text-sm font-medium">Tippe etwas ein, um die globale Suche zu starten.</p></div>
         </ScrollArea>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Project Dialog -->
+    <Dialog v-model:open="isProjectDialogOpen">
+      <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
+        <DialogHeader>
+          <DialogTitle>{{ editingProjectId ? 'Projekt bearbeiten' : 'Neues Projekt' }}</DialogTitle>
+          <DialogDescription class="text-white/40">Verwalte deine Aufgaben mit Stil.</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-4">
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-white/40">TITEL</label>
+            <Input v-model="newProjectTitle" v-focus placeholder="Projektname..." class="bg-white/5 border-white/10 h-11" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-xs font-semibold text-white/40">BESCHREIBUNG</label>
+            <Input v-model="newProjectDescription" placeholder="Kurze Info..." class="bg-white/5 border-white/10 h-11" />
+          </div>
+        </div>
+        <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddProject">{{ editingProjectId ? 'Speichern' : 'Projekt erstellen' }}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Board Dialog -->
+    <Dialog v-model:open="isBoardDialogOpen">
+      <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
+        <DialogHeader><DialogTitle>{{ editingBoardId ? 'BOARD BEARBEITEN' : 'BOARD ERSTELLEN' }}</DialogTitle></DialogHeader>
+        <div class="space-y-4 py-4"><Input v-model="newBoardTitle" v-focus placeholder="Name..." class="bg-white/5 border-white/10 h-12" /></div>
+        <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

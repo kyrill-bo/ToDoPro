@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import draggable from 'vuedraggable'
 import { 
@@ -20,11 +20,10 @@ import {
   Terminal,
   Cpu,
   Activity,
-  ChevronRight,
   Database,
   ChevronDown,
   ChevronUp,
-  Info
+  Fingerprint
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -41,6 +40,7 @@ import {
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { VisuallyHidden } from 'reka-ui'
+import { marked } from 'marked'
 import type { Card as CardType, Tag } from '@/types'
 
 const props = defineProps<{
@@ -50,8 +50,8 @@ const props = defineProps<{
 const store = useTodoStore()
 const board = computed(() => store.getBoardById(props.boardId))
 
-// UI States
-const expandedSection = ref<'checklist' | 'parameters' | 'activity'>('parameters')
+// --- UI STATES ---
+const activeSection = ref<'parameters' | 'checklist' | 'activity'>('parameters')
 
 // State for adding/editing
 const newColumnTitle = ref('')
@@ -68,6 +68,13 @@ const commentText = ref('')
 const newChecklistItem = ref('')
 const newTagText = ref('')
 const selectedTagColor = ref('#ffffff')
+
+// --- MARKDOWN PREVIEW ---
+const isEditingDescription = ref(false)
+const renderedDescription = computed(() => {
+  if (!selectedCard.value?.description) return '<span class="opacity-20 italic">Keine Beschreibung vorhanden. Klicke zum Bearbeiten...</span>'
+  return marked(selectedCard.value.description)
+})
 
 // --- AUTO-SAVE ---
 watch(isCardDetailOpen, (newVal) => {
@@ -109,6 +116,28 @@ const stopPanning = () => {
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', stopPanning)
 }
+
+// --- SHORTCUTS ---
+onMounted(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
+    if (isInput && e.key !== 'Escape') return
+    
+    if (isCardDetailOpen.value) {
+      if (e.key === 'Escape') isCardDetailOpen.value = false
+      if (e.key === '1') activeSection.value = 'parameters'
+      if (e.key === '2') activeSection.value = 'checklist'
+      if (e.key === '3') activeSection.value = 'activity'
+    } else {
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault()
+        if (board.value?.columns.length) isAddingCard.value[board.value.columns[0].id] = true
+      }
+    }
+  }
+  window.addEventListener('keydown', handleKeyDown)
+  onUnmounted(() => window.removeEventListener('keydown', handleKeyDown))
+})
 
 // Actions
 const handleAddColumn = () => {
@@ -174,12 +203,18 @@ const formatDate = (timestamp: number) => {
 }
 
 const colors = [
-  { name: 'None', value: 'transparent' },
-  { name: 'White', value: '#ffffff' },
-  { name: 'Blue', value: '#0ea5e9' },
-  { name: 'Purple', value: '#a855f7' },
-  { name: 'Green', value: '#10b981' },
-  { name: 'Red', value: '#ef4444' },
+  { name: 'Default', value: 'transparent', hex: '#111111' },
+  { name: 'White', value: '#ffffff', hex: '#FFFFFF' },
+  { name: 'Cyber Blue', value: '#0ea5e9', hex: '#0EA5E9' },
+  { name: 'Neon Purple', value: '#a855f7', hex: '#A855F7' },
+  { name: 'Matrix Green', value: '#10b981', hex: '#10B981' },
+  { name: 'Laser Red', value: '#ef4444', hex: '#EF4444' },
+  { name: 'Gold', value: '#f59e0b', hex: '#F59E0B' },
+  { name: 'Pink', value: '#ec4899', hex: '#EC4899' },
+  { name: 'Orange', value: '#f97316', hex: '#F97316' },
+  { name: 'Lime', value: '#84cc16', hex: '#84CC16' },
+  { name: 'Teal', value: '#14b8a6', hex: '#14B8A6' },
+  { name: 'Indigo', value: '#6366f1', hex: '#6366F1' },
 ]
 
 const tagColors = ['#ffffff', '#0ea5e9', '#a855f7', '#10b981', '#ef4444', '#f59e0b']
@@ -190,19 +225,15 @@ const vFocus = {
     input?.focus()
   }
 }
-
-const toggleSection = (section: 'checklist' | 'parameters' | 'activity') => {
-  expandedSection.value = expandedSection.value === section ? section : section
-}
 </script>
 
 <template>
   <div v-if="board" class="h-full w-full relative overflow-hidden flex flex-col">
     <div ref="viewportRef" class="flex-1 overflow-x-auto overflow-y-hidden cursor-grab select-none" @mousedown="onMouseDown">
-      <div class="flex items-start h-full p-8 min-w-full w-max gap-10">
+      <div class="flex items-start h-full p-10 min-w-full w-max gap-10">
         <draggable v-model="board.columns" group="columns" item-key="id" handle=".column-handle" class="flex gap-10 h-full items-start" ghost-class="opacity-50">
           <template #item="{ element: column }">
-            <div class="w-80 flex-shrink-0 flex flex-col bg-white/[0.05] border-x border-white/20 h-full relative group/rail">
+            <div class="w-80 flex-shrink-0 flex flex-col bg-white/[0.05] border-x border-white/20 h-full relative group/rail shadow-2xl">
               <div class="absolute top-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
                 <div class="h-full bg-white transition-all duration-700 ease-out" :style="{ width: Math.min(100, (column.cards.length / 10) * 100) + '%' }"></div>
               </div>
@@ -216,7 +247,7 @@ const toggleSection = (section: 'checklist' | 'parameters' | 'activity') => {
                   <DropdownMenuTrigger as-child class="dropdown-trigger"><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/20 no-drag" @mousedown.stop><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2">
                     <DropdownMenuItem class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="editingColumnId = column.id; editingColumnTitle = column.title"><Type class="w-4 h-4 mr-2" /> Umbenennen</DropdownMenuItem>
-                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="store.deleteColumn(boardId, column.id)"><Trash2 class="w-4 h-4 mr-2" /> Löschen</DropdownMenuItem>
+                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="store.deleteColumn(boardId, column.id)"><Trash2 class="w-4 h-4 mr-2" /> Spalte löschen</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -267,136 +298,113 @@ const toggleSection = (section: 'checklist' | 'parameters' | 'activity') => {
       </div>
     </div>
 
-    <!-- CLEAN COMMAND CONSOLE CARD DETAIL -->
+    <!-- COMMAND CENTER CARD DETAIL -->
     <Dialog v-model:open="isCardDetailOpen">
-      <DialogContent hide-close class="max-w-5xl h-[80vh] bg-[#080808] border border-white/20 text-white p-0 overflow-hidden z-[1000] flex flex-col rounded-3xl shadow-[0_0_100px_rgba(0,0,0,1)]">
+      <DialogContent hide-close class="max-w-6xl h-[85vh] bg-[#050505] border border-white/20 text-white p-0 overflow-hidden z-[1000] flex flex-col rounded-[2.5rem] shadow-[0_0_100px_rgba(0,0,0,1)]">
         <VisuallyHidden>
           <DialogTitle>{{ selectedCard?.title }}</DialogTitle>
-          <DialogDescription>Central Command Console</DialogDescription>
+          <DialogDescription>Central Task Command Interface</DialogDescription>
         </VisuallyHidden>
 
-        <div v-if="selectedCard" class="flex flex-col h-full">
-          <!-- Top Global Bar -->
-          <div class="h-16 border-b border-white/10 bg-white/[0.02] flex items-center px-8 justify-between">
-            <div class="flex items-center gap-4">
-              <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-black text-[10px]">CC</div>
-              <div class="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Command_Console // v1.0</div>
-            </div>
-            <button class="p-2 rounded-full hover:bg-white/5 text-white/20 hover:text-white transition-all no-drag" @click="isCardDetailOpen = false"><X class="w-5 h-5" /></button>
-          </div>
-
-          <div class="flex-1 flex overflow-hidden">
-            <!-- LEFT: CORE CONSOLE (Description & Title) -->
-            <div class="flex-1 flex flex-col border-r border-white/10">
-              <div class="p-10 space-y-10">
-                <div class="space-y-2">
-                  <span class="text-[10px] font-black text-white/20 uppercase tracking-widest">Entry_Identifier</span>
-                  <Input v-model="selectedCard.title" v-focus class="text-4xl font-black italic uppercase bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white tracking-tighter w-full" />
-                </div>
-
-                <div class="space-y-4">
-                  <div class="flex items-center gap-2 text-[10px] font-black text-white/20 tracking-[0.4em]"><Terminal class="w-3 h-3" /> // DATA_CONTENT</div>
-                  <textarea v-model="selectedCard.description" placeholder="Input data..." class="w-full min-h-[300px] bg-white/[0.02] border border-white/5 p-6 rounded-2xl text-lg text-white/80 focus:border-white/20 outline-none transition-all resize-none font-mono"></textarea>
-                </div>
+        <div class="h-20 border-b border-white/10 bg-white/[0.02] flex items-center px-10 justify-between shrink-0">
+          <div class="flex items-center gap-6 flex-1">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-xs shadow-[0_0_20px_rgba(255,255,255,0.2)]">CORE</div>
+              <div class="flex flex-col">
+                <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">Unit_Established</span>
+                <span class="text-[10px] font-mono text-green-500/60 uppercase">Link_Active</span>
               </div>
             </div>
+            <Input v-if="selectedCard" v-model="selectedCard.title" v-focus class="text-3xl font-black italic uppercase bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white tracking-tighter w-full placeholder:text-white/5" />
+          </div>
+          <Button variant="ghost" size="icon" class="w-12 h-12 rounded-full hover:bg-white/10 text-white/20 no-drag" @click="isCardDetailOpen = false">
+            <X class="w-6 h-6" />
+          </Button>
+        </div>
 
-            <!-- RIGHT: SERVICE MODULES (Collapsible) -->
-            <div class="w-[400px] flex flex-col bg-white/[0.01]">
-              <!-- Module: Parameters (Tags, Color, Date) -->
-              <div class="border-b border-white/10 transition-all" :class="expandedSection === 'parameters' ? 'flex-1' : 'h-14'">
-                <button @click="toggleSection('parameters')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
-                  <div class="flex items-center gap-3">
-                    <Cpu class="w-4 h-4 text-white/40" />
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Parameters</span>
+        <div v-if="selectedCard" class="flex-1 flex overflow-hidden">
+          <div class="flex-1 flex flex-col border-r border-white/10">
+            <ScrollArea class="flex-1">
+              <div class="p-10 space-y-8">
+                <div class="flex items-center gap-3 text-[10px] font-black text-white/30 tracking-[0.5em]">
+                  <Terminal class="w-4 h-4" /> // BRAIN_DUMP
+                </div>
+                <div v-if="!isEditingDescription" @click="isEditingDescription = true" class="w-full min-h-[400px] bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] text-white/80 hover:border-white/20 transition-all cursor-text prose prose-invert max-w-none prose-lg font-mono leading-relaxed shadow-inner" v-html="renderedDescription"></div>
+                <textarea v-else v-model="selectedCard.description" v-focus @blur="isEditingDescription = false" placeholder="Inject system data..." class="w-full min-h-[400px] bg-white/[0.03] border border-white/20 p-8 rounded-[2rem] text-xl text-white outline-none transition-all resize-none font-mono leading-relaxed"></textarea>
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div class="w-[450px] flex flex-col bg-white/[0.01]">
+            <div class="border-b border-white/10 transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'parameters' ? 'flex-[1.5]' : 'h-16 shrink-0'">
+              <button @click="activeSection = 'parameters'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group shrink-0">
+                <div class="flex items-center gap-4"><Cpu class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Parameters</span></div>
+                <div v-if="activeSection !== 'parameters'" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ selectedCard.tags.length }} Tags // {{ selectedCard.dueDate || 'No Date' }}</div>
+                <component :is="activeSection === 'parameters' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
+              </button>
+              <ScrollArea v-if="activeSection === 'parameters'" class="flex-1 p-8">
+                <div class="space-y-10 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <!-- REDESIGNED COLOR SELECTOR -->
+                  <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                      <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Aura_Spectrum</div>
+                      <div class="text-[8px] font-mono text-white/40 uppercase italic">{{ colors.find(c => c.value === selectedCard.color)?.name }} // {{ colors.find(c => c.value === selectedCard.color)?.hex }}</div>
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                      <button 
+                        v-for="color in colors" :key="color.value" 
+                        @click="selectedCard.color = color.value" 
+                        class="group relative w-10 h-10 rounded-full border border-white/10 transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden" 
+                        :style="{ backgroundColor: color.value === 'transparent' ? '#111' : color.value }" 
+                      >
+                        <div v-if="selectedCard.color === color.value" class="absolute inset-0 flex items-center justify-center bg-black/20 animate-in fade-in zoom-in-50 duration-300">
+                          <div class="w-2 h-2 rounded-full bg-white shadow-[0_0_10px_white]"></div>
+                        </div>
+                        <div 
+                          class="absolute inset-0 opacity-0 group-hover:opacity-40 transition-opacity duration-300"
+                          :style="{ boxShadow: `inset 0 0 15px ${color.value !== 'transparent' ? color.value : 'white'}` }"
+                        ></div>
+                      </button>
+                    </div>
                   </div>
-                  <div v-if="expandedSection !== 'parameters'" class="text-[9px] font-bold text-white/20 uppercase italic">
-                    {{ selectedCard.tags.length }} Tags // {{ selectedCard.color !== 'transparent' ? 'Colored' : 'Default' }}
-                  </div>
-                  <component :is="expandedSection === 'parameters' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
-                </button>
-                <div v-if="expandedSection === 'parameters'" class="p-8 space-y-8 animate-in fade-in duration-300">
                   <div class="space-y-4">
-                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Identifiers</div>
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Identifier_Tags</div>
                     <div class="flex flex-wrap gap-2">
-                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-2 py-1 rounded border border-white/10 text-[9px] font-black uppercase" :style="{ color: tag.color }">{{ tag.text }}</div>
-                      <button @click="newTagText = ''; addTag()" class="h-6 px-3 rounded border border-dashed border-white/10 text-white/20 text-[9px] hover:text-white">+</button>
+                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase flex items-center gap-2 bg-white/5" :style="{ color: tag.color }">{{ tag.text }}<X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="selectedCard.tags = selectedCard.tags.filter(t => t.id !== tag.id)" /></div>
+                      <DropdownMenu><DropdownMenuTrigger as-child><button class="h-6 px-4 rounded-full border border-dashed border-white/10 text-white/20 text-[9px] font-black hover:text-white transition-all">+</button></DropdownMenuTrigger><DropdownMenuContent class="bg-black/95 border-white/20 p-6 w-72 backdrop-blur-3xl rounded-2xl"><div class="space-y-6"><Input v-model="newTagText" v-focus placeholder="Tag Name..." class="bg-white/5 h-12 text-sm font-bold" @keyup.enter="addTag" /><div class="grid grid-cols-6 gap-3"><button v-for="c in tagColors" :key="c" class="w-full aspect-square rounded-full" :style="{ backgroundColor: c }" :class="selectedTagColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''" @click="selectedTagColor = c"></button></div><Button class="w-full bg-white text-black font-black h-12 rounded-xl" @click="addTag">APPLY</Button></div></DropdownMenuContent></DropdownMenu>
                     </div>
                   </div>
                   <div class="space-y-4">
-                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Spectrum</div>
-                    <div class="flex gap-2">
-                      <button v-for="color in colors" :key="color.value" @click="selectedCard.color = color.value" class="w-6 h-6 rounded-md border border-white/10" :style="{ backgroundColor: color.value === 'transparent' ? '#111' : color.value }" :class="selectedCard.color === color.value ? 'ring-1 ring-white ring-offset-2 ring-offset-black' : ''"></button>
-                    </div>
-                  </div>
-                  <div class="space-y-4">
-                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Timeline</div>
-                    <Input type="date" v-model="selectedCard.dueDate" class="h-10 bg-white/5 border-white/10 text-white font-mono text-[10px]" />
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Time_Limit</div>
+                    <Input type="date" v-model="selectedCard.dueDate" class="h-12 bg-white/5 border-white/10 text-white font-mono font-bold text-xs px-6 rounded-xl" />
                   </div>
                 </div>
-              </div>
+              </ScrollArea>
+            </div>
 
-              <!-- Module: Checklist -->
-              <div class="border-b border-white/10 transition-all" :class="expandedSection === 'checklist' ? 'flex-1' : 'h-14'">
-                <button @click="toggleSection('checklist')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
-                  <div class="flex items-center gap-3">
-                    <CheckSquare class="w-4 h-4 text-white/40" />
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Checklist</span>
-                  </div>
-                  <div v-if="expandedSection !== 'checklist' && getChecklistProgress(selectedCard)" class="text-[9px] font-bold text-white/20 uppercase italic">
-                    {{ getChecklistProgress(selectedCard)?.completed }}/{{ getChecklistProgress(selectedCard)?.total }} Sync
-                  </div>
-                  <component :is="expandedSection === 'checklist' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
-                </button>
-                <ScrollArea v-if="expandedSection === 'checklist'" class="h-[calc(100%-3.5rem)] p-8">
-                  <div class="space-y-4">
-                    <div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/item">
-                      <button @click="item.completed = !item.completed" class="w-5 h-5 rounded border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black' : 'bg-white/5'"><Check v-if="item.completed" class="w-3 h-3" /></button>
-                      <input v-model="item.text" class="flex-1 bg-transparent border-none text-sm outline-none" :class="item.completed ? 'text-white/20 line-through' : 'text-white/80'" />
-                    </div>
-                    <Input v-model="newChecklistItem" placeholder="Append sub-process..." class="bg-white/5 border-white/10 h-10 text-xs" @keyup.enter="addChecklistItem" />
-                  </div>
-                </ScrollArea>
-              </div>
+            <div class="border-b border-white/10 transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'checklist' ? 'flex-[1.5]' : 'h-16 shrink-0'">
+              <button @click="activeSection = 'checklist'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group border-t border-white/10 shrink-0">
+                <div class="flex items-center gap-4"><CheckSquare class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Checklist</span></div>
+                <div v-if="activeSection !== 'checklist' && getChecklistProgress(selectedCard)" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ getChecklistProgress(selectedCard)?.completed }}/{{ getChecklistProgress(selectedCard)?.total }} Resolved</div>
+                <component :is="activeSection === 'checklist' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
+              </button>
+              <ScrollArea v-if="activeSection === 'checklist'" class="flex-1 p-8"><div class="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500"><div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/check"><button @click="item.completed = !item.completed" class="w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'bg-white/5 hover:border-white/30'"><Check v-if="item.completed" class="w-4 h-4" /></button><input v-model="item.text" class="flex-1 bg-transparent border-none text-base outline-none transition-opacity" :class="item.completed ? 'text-white/10 line-through italic' : 'text-white/80'" /><button class="opacity-0 group-hover/check:opacity-100 p-1 text-white/20 hover:text-red-500 transition-all" @click="removeChecklistItem(item.id)"><Trash2 class="w-4 h-4" /></button></div><div class="flex gap-4 pt-4 border-t border-white/5 items-center"><Plus class="w-4 h-4 text-white/10" /><Input v-model="newChecklistItem" placeholder="Append sub-task..." class="bg-transparent border-none h-10 p-0 text-sm focus-visible:ring-0 placeholder:text-white/5" @keyup.enter="addChecklistItem" /></div></div></ScrollArea>
+            </div>
 
-              <!-- Module: Activity -->
-              <div class="transition-all" :class="expandedSection === 'activity' ? 'flex-1' : 'h-14'">
-                <button @click="toggleSection('activity')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
-                  <div class="flex items-center gap-3">
-                    <Activity class="w-4 h-4 text-white/40" />
-                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Neural Feed</span>
-                  </div>
-                  <div v-if="expandedSection !== 'activity'" class="text-[9px] font-bold text-white/20 uppercase italic">
-                    {{ selectedCard.comments.length }} Entries
-                  </div>
-                  <component :is="expandedSection === 'activity' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
-                </button>
-                <div v-if="expandedSection === 'activity'" class="h-[calc(100%-3.5rem)] flex flex-col">
-                  <ScrollArea class="flex-1 p-6">
-                    <div class="space-y-6">
-                      <div v-for="comment in [...selectedCard.comments].reverse()" :key="comment.id" class="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
-                        <div class="flex items-center justify-between text-[8px] font-mono text-white/20"><span>UID: {{ comment.id.slice(0,4) }}</span><span>{{ formatDate(comment.createdAt) }}</span></div>
-                        <p class="text-xs text-white/60 font-mono">{{ comment.text }}</p>
-                      </div>
-                    </div>
-                  </ScrollArea>
-                  <div class="p-6 border-t border-white/10 bg-white/[0.01]">
-                    <Input v-model="commentText" placeholder="Inject log..." class="bg-white/5 border-white/10 h-10 text-xs font-mono" @keyup.enter="handleAddComment" />
-                  </div>
-                </div>
-              </div>
+            <div class="transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'activity' ? 'flex-[1.5]' : 'h-16 shrink-0'">
+              <button @click="activeSection = 'activity'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group border-t border-white/10 shrink-0">
+                <div class="flex items-center gap-4"><Activity class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Neural_Feed</span></div>
+                <div v-if="activeSection !== 'activity'" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ selectedCard.comments.length }} Entry Points</div>
+                <component :is="activeSection === 'activity' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
+              </button>
+              <div v-if="activeSection === 'activity'" class="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2 duration-500"><ScrollArea class="flex-1 p-8"><div class="space-y-8"><div v-for="comment in [...selectedCard.comments].reverse()" :key="comment.id" class="space-y-2 group/msg"><div class="flex items-center justify-between text-[8px] font-mono text-white/20 uppercase tracking-widest"><span>UID: {{ comment.id.slice(0,8).toUpperCase() }}</span><span>{{ formatDate(comment.createdAt) }}</span></div><div class="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-sm text-white/50 leading-relaxed font-mono group-hover/msg:border-white/20 group-hover/msg:text-white/80 transition-all shadow-inner">{{ comment.text }}</div></div></div></ScrollArea><div class="p-8 border-t border-white/10 bg-white/[0.01]"><Input v-model="commentText" placeholder="Inject thought stream..." class="bg-white/5 border-white/10 h-12 text-sm font-mono rounded-xl px-6" @keyup.enter="handleAddComment" /></div></div>
             </div>
           </div>
+        </div>
 
-          <!-- Footer Control Bar -->
-          <div class="h-16 border-t border-white/10 bg-white/[0.02] flex items-center px-8 justify-between">
-            <Button variant="ghost" class="text-red-500 hover:bg-red-500/10 font-black text-[9px] tracking-widest" @click="store.deleteCard(boardId, selectedCardColumnId!, selectedCard.id); isCardDetailOpen = false">
-              TERMINATE_DATA_BLOCK
-            </Button>
-            <Button class="bg-white text-black hover:bg-white/90 font-black px-10 rounded-full h-10 text-[10px]" @click="isCardDetailOpen = false">
-              SAVE_AND_EXIT
-            </Button>
-          </div>
+        <div class="h-20 border-t border-white/10 bg-white/[0.02] flex items-center px-10 justify-between shrink-0">
+          <Button variant="ghost" class="text-red-500/50 hover:bg-red-500/10 hover:text-red-400 font-black text-[10px] tracking-widest transition-all" @click="store.deleteCard(boardId, selectedCardColumnId!, selectedCard.id); isCardDetailOpen = false"><Trash2 class="w-4 h-4 mr-2" /> TERMINATE_ENTITY</Button>
+          <div class="flex items-center gap-6"><span class="text-[9px] font-black text-white/10 italic tracking-[0.2em] uppercase">Status: Core_Stable</span><Button class="bg-white text-black hover:bg-white/90 font-black px-12 rounded-full h-12 shadow-[0_0_30px_rgba(255,255,255,0.1)]" @click="isCardDetailOpen = false">SYNC & CLOSE</Button></div>
         </div>
       </DialogContent>
     </Dialog>
@@ -406,6 +414,14 @@ const toggleSection = (section: 'checklist' | 'parameters' | 'activity') => {
 <style scoped>
 :deep([data-radix-scroll-area-viewport]) {
   display: block !important;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
 }
 
 .board-viewport {
