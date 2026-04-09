@@ -9,21 +9,15 @@ import {
   MessageSquare, 
   Calendar,
   Type,
-  AlignLeft,
-  GripVertical,
   CheckSquare,
-  Tag as TagIcon,
   Check,
   X,
-  Clock,
-  Palette,
   Terminal,
   Cpu,
   Activity,
   Database,
   ChevronDown,
   ChevronUp,
-  Fingerprint,
   Bold,
   Italic,
   List as ListIcon,
@@ -31,22 +25,18 @@ import {
   Heading
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
-import { Card, CardHeader, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { 
   Dialog, 
   DialogContent, 
-  DialogHeader, 
   DialogTitle, 
   DialogDescription,
-  DialogFooter
 } from '@/components/ui/dialog'
-import { Separator } from '@/components/ui/separator'
 import { VisuallyHidden } from 'reka-ui'
 import { marked } from 'marked'
-import type { Card as CardType, Tag } from '@/types'
+import type { Card as CardType } from '@/types'
 
 const props = defineProps<{
   boardId: string
@@ -408,7 +398,7 @@ const vFocus = {
                   <div class="space-y-6">
                     <div class="flex items-center justify-between">
                       <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Aura_Spectrum</div>
-                      <div class="text-[8px] font-mono text-white/40 uppercase italic">{{ colors.find(c => c.value === selectedCard.color)?.name }} // {{ colors.find(c => c.value === selectedCard.color)?.hex }}</div>
+                      <div class="text-[8px] font-mono text-white/40 uppercase italic">{{ colors.find(c => c.value === selectedCard?.color)?.name }} // {{ colors.find(c => c.value === selectedCard?.color)?.hex }}</div>
                     </div>
                     <div class="flex flex-wrap gap-3">
                       <button 
@@ -463,7 +453,7 @@ const vFocus = {
         </div>
 
         <div class="h-20 border-t border-white/10 bg-white/[0.02] flex items-center px-10 justify-between shrink-0">
-          <Button variant="ghost" class="text-red-500/50 hover:bg-red-500/10 hover:text-red-400 font-black text-[10px] tracking-widest transition-all" @click="store.deleteCard(boardId, selectedCardColumnId!, selectedCard.id); isCardDetailOpen = false"><Trash2 class="w-4 h-4 mr-2" /> TERMINATE_ENTITY</Button>
+          <Button variant="ghost" class="text-red-500/50 hover:bg-red-500/10 hover:text-red-400 font-black text-[10px] tracking-widest transition-all" @click="selectedCard && store.deleteCard(boardId, selectedCardColumnId!, selectedCard.id); isCardDetailOpen = false"><Trash2 class="w-4 h-4 mr-2" /> TERMINATE_ENTITY</Button>
           <div class="flex items-center gap-6"><span class="text-[9px] font-black text-white/10 italic tracking-[0.2em] uppercase">Status: Core_Stable</span><Button class="bg-white text-black hover:bg-white/90 font-black px-12 rounded-full h-12 shadow-[0_0_30px_rgba(255,255,255,0.1)]" @click="isCardDetailOpen = false">SYNC & CLOSE</Button></div>
         </div>
       </DialogContent>

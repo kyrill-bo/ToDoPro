@@ -5,13 +5,8 @@ import {
   Settings, 
   Plus, 
   MoreVertical,
-  Trash2,
   ArrowLeft,
-  Download, 
-  Upload, 
-  ShieldCheck,
   Search,
-  Command,
   Layout,
   Minus,
   Square,
@@ -19,8 +14,7 @@ import {
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { VisuallyHidden } from 'reka-ui'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -41,7 +35,6 @@ const hoveredProjectId = ref<string | null>(null)
 
 // Settings state
 const isSettingsOpen = ref(false)
-const importFileRef = ref<HTMLInputElement | null>(null)
 
 // Search state
 const isSearchOpen = ref(false)
@@ -143,27 +136,6 @@ const goBack = () => {
     selectedProjectId.value = null
   }
 }
-
-const handleExport = () => {
-  const data = { projects: store.projects, boards: store.boards }
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `todo-pro-backup-${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url)
-}
-
-const handleImport = (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = (e) => {
-    try {
-      const content = e.target?.result as string; const data = JSON.parse(content)
-      if (data.projects && data.boards) { store.importData(data); isSettingsOpen.value = false; alert('Daten erfolgreich importiert!') }
-    } catch (err) { console.error(err) }
-  }
-  reader.readAsText(file)
-}
-
-const triggerImport = () => importFileRef.value?.click()
 
 // Window Controls
 const minimizeWindow = () => {
@@ -430,7 +402,7 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
                     </div>
                     <div class="flex h-1.5 gap-0.5 rounded-full overflow-hidden bg-white/5 border border-white/5 p-[1px]">
                       <div 
-                        v-for="(column, idx) in board.columns" 
+                        v-for="column in board.columns" 
                         :key="column.id"
                         class="h-full transition-all duration-1000 ease-out"
                         :class="[
