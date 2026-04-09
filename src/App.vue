@@ -22,7 +22,6 @@ import { VisuallyHidden } from 'reka-ui'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import BoardView from '@/components/BoardView.vue'
-import TargetCursor from '@/components/TargetCursor.vue'
 
 const store = useTodoStore()
 const { addProject, updateProject, addBoard, updateBoard } = store
@@ -242,9 +241,7 @@ const vFocus = {
 </script>
 
 <template>
-  <div class="flex h-screen bg-black overflow-hidden text-white cursor-none">
-    <TargetCursor :spin-duration="5" :hover-duration="0.3" />
-    
+  <div class="flex h-screen bg-black overflow-hidden text-white">
     <!-- Window Drag Handle (for Electron) -->
     <div class="fixed top-0 left-0 right-0 h-10 z-[100] pointer-events-none">
       <div class="w-full h-full pointer-events-auto drag-region"></div>
@@ -492,12 +489,6 @@ html, body, #app {
   background-color: #000;
   color: #fff;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  cursor: none;
-}
-
-/* Ensure all interactive elements also have no cursor */
-button, a, input, textarea, [role="button"], .cursor-pointer {
-  cursor: none !important;
 }
 
 /* Transitions for Layout */
