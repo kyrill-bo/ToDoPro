@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/kyrill-bo/ToDoPro/compare/v1.2.1...v1.3.0) (2026-04-09)
+
+
+### Features
+
+* remove unused SVG icons and logo image; add import/export functionality for projects and boards in App.vue; enhance BoardView.vue to open links in new tabs; refactor todo store for improved data handling and add clear/reset functionality ([44a15eb](https://github.com/kyrill-bo/ToDoPro/commit/44a15eb9977dc491255ac60ce69588f6e22c4ae8))
+
+
+### Bug Fixes
+
+* **App.vue:** update logo image styling to improve visibility ([dbe99a7](https://github.com/kyrill-bo/ToDoPro/commit/dbe99a76168f6ed1c0f7c71e2ff1ad100e8c8319))
+
 ### [1.2.1](https://github.com/kyrill-bo/ToDoPro/compare/v1.2.0...v1.2.1) (2026-04-09)
 
 ## [1.2.0](https://github.com/kyrill-bo/ToDoPro/compare/v1.1.0...v1.2.0) (2026-04-09)
