@@ -44,6 +44,12 @@ const importFileRef = ref<HTMLInputElement | null>(null)
 const isSearchOpen = ref(false)
 const searchQuery = ref('')
 
+// Responsive state
+const isScreenTooSmall = ref(false)
+const checkScreenSize = () => {
+  isScreenTooSmall.value = window.innerWidth < 1024 || window.innerHeight < 600
+}
+
 const searchResults = computed(() => {
   if (!searchQuery.value) return []
   const query = searchQuery.value.toLowerCase()
@@ -216,6 +222,8 @@ const triggerImport = () => {
 }
 
 onMounted(() => {
+  checkScreenSize()
+  window.addEventListener('resize', checkScreenSize)
   const handleKeyDown = (e: KeyboardEvent) => {
     const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement
     if (isInput) return
@@ -522,20 +530,6 @@ const vFocus = {
                   {{ project.description }}
                 </p>
               </div>
-
-              <!-- System Stats Footer -->
-              <div class="pt-6 border-t border-white/5 flex items-center justify-between">
-                <div class="flex flex-col">
-                  <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">System_Status</span>
-                  <span class="text-[10px] font-mono text-green-500/60 uppercase">Active_Link</span>
-                </div>
-                <div class="text-right">
-                  <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Boards_Cnt</span>
-                  <div class="text-xl font-black italic text-white/10 group-hover:text-white/40 transition-colors">
-                    {{ store.getBoardsByProject(project.id).length.toString().padStart(2, '0') }}
-                  </div>
-                </div>
-              </div>
             </div>
 
             <!-- Corner Accents (Only on Hover) -->
@@ -634,7 +628,7 @@ const vFocus = {
         </div>
 
         <!-- Board Detail View (Kanban) -->
-        <BoardView v-else-if="currentView === 'board-detail' && selectedBoardId" :board-id="selectedBoardId" />
+        <BoardView v-else-if="currentView === 'board-detail' && selectedBoardId" :board-id="selectedBoardId" :key="selectedBoardId" />
       </div>
     </main>
 
@@ -680,6 +674,22 @@ const vFocus = {
         <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <!-- Fullscreen Warning Overlay -->
+    <div v-if="isScreenTooSmall" class="fixed inset-0 z-[10000] bg-black backdrop-blur-3xl flex flex-col items-center justify-center p-10 text-center space-y-6 animate-in fade-in duration-500">
+      <div class="w-20 h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.1)]">
+        <Layout class="w-10 h-10 text-white/40 animate-pulse" />
+      </div>
+      <div class="space-y-2">
+        <h2 class="text-2xl font-black italic uppercase tracking-tighter">System_Resolution_Low</h2>
+        <p class="text-sm text-white/40 font-mono max-w-xs mx-auto">Das Interface benötigt eine höhere Auflösung. Bitte vergrößere das Fenster, um fortzufahren.</p>
+      </div>
+      <div class="pt-4 flex items-center gap-4">
+        <div class="text-[10px] font-black text-white/10 uppercase tracking-[0.3em]">Min_Width: 1024px</div>
+        <div class="w-1 h-1 rounded-full bg-white/10"></div>
+        <div class="text-[10px] font-black text-white/10 uppercase tracking-[0.3em]">Min_Height: 600px</div>
+      </div>
+    </div>
   </div>
 </template>
 

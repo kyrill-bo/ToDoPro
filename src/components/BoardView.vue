@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import draggable from 'vuedraggable'
 import { 
@@ -23,7 +23,12 @@ import {
   Database,
   ChevronDown,
   ChevronUp,
-  Fingerprint
+  Fingerprint,
+  Bold,
+  Italic,
+  List as ListIcon,
+  Code as CodeIcon,
+  Heading
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -51,7 +56,7 @@ const store = useTodoStore()
 const board = computed(() => store.getBoardById(props.boardId))
 
 // --- UI STATES ---
-const activeSection = ref<'parameters' | 'checklist' | 'activity'>('parameters')
+const activeSection = ref<'parameters' | 'checklist' | 'activity'>('activity')
 
 // State for adding/editing
 const newColumnTitle = ref('')
@@ -75,6 +80,38 @@ const renderedDescription = computed(() => {
   if (!selectedCard.value?.description) return '<span class="opacity-20 italic">Keine Beschreibung vorhanden. Klicke zum Bearbeiten...</span>'
   return marked(selectedCard.value.description)
 })
+
+const startEditingDescription = async (e: MouseEvent) => {
+  // Prevent edit mode if clicking on a link
+  const target = e.target as HTMLElement
+  if (target.tagName === 'A') return
+
+  isEditingDescription.value = true
+  await nextTick()
+  const textarea = document.querySelector('.description-textarea') as HTMLTextAreaElement
+  textarea?.focus()
+}
+
+const applyMarkdown = (prefix: string, suffix: string = '') => {
+  if (!selectedCard.value) return
+  const textarea = document.querySelector('.description-textarea') as HTMLTextAreaElement
+  if (!textarea) return
+
+  const start = textarea.selectionStart
+  const end = textarea.selectionEnd
+  const text = selectedCard.value.description || ''
+  const selectedText = text.substring(start, end)
+  
+  const newText = text.substring(0, start) + prefix + selectedText + suffix + text.substring(end)
+  selectedCard.value.description = newText
+  
+  // Refocus and set selection
+  nextTick(() => {
+    textarea.focus()
+    const newPos = start + prefix.length + selectedText.length + suffix.length
+    textarea.setSelectionRange(newPos, newPos)
+  })
+}
 
 // --- AUTO-SAVE ---
 watch(isCardDetailOpen, (newVal) => {
@@ -187,8 +224,18 @@ const removeChecklistItem = (id: string) => {
 
 const addTag = () => {
   if (newTagText.value && selectedCard.value) {
-    selectedCard.value.tags.push({ id: crypto.randomUUID(), text: newTagText.value, color: selectedTagColor.value })
+    selectedCard.value.tags.push({
+      id: crypto.randomUUID(),
+      text: newTagText.value,
+      color: selectedTagColor.value
+    })
     newTagText.value = ''
+  }
+}
+
+const removeTag = (tagId: string) => {
+  if (selectedCard.value) {
+    selectedCard.value.tags = selectedCard.value.tags.filter(t => t.id !== tagId)
   }
 }
 
@@ -262,6 +309,7 @@ const vFocus = {
                         <div v-for="tag in card.tags" :key="tag.id" class="px-2 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-tighter border" :style="{ borderColor: tag.color + '40', color: tag.color, backgroundColor: tag.color + '10' }">{{ tag.text }}</div>
                       </div>
                       <p class="text-sm font-black italic uppercase leading-tight text-white/70 group-hover:text-white transition-colors tracking-tight">{{ card.title }}</p>
+                      <p v-if="card.description" class="text-[10px] text-white/20 line-clamp-1 italic">{{ card.description }}</p>
                       <div class="flex items-center justify-between text-[9px] font-black text-white/20 uppercase tracking-widest pt-2">
                         <div class="flex items-center gap-3">
                           <div v-if="card.dueDate" class="flex items-center gap-1"><Calendar class="w-2.5 h-2.5" />{{ card.dueDate }}</div>
@@ -325,12 +373,34 @@ const vFocus = {
         <div v-if="selectedCard" class="flex-1 flex overflow-hidden">
           <div class="flex-1 flex flex-col border-r border-white/10">
             <ScrollArea class="flex-1">
-              <div class="p-10 space-y-8">
-                <div class="flex items-center gap-3 text-[10px] font-black text-white/30 tracking-[0.5em]">
-                  <Terminal class="w-4 h-4" /> // BRAIN_DUMP
+              <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-3 text-[10px] font-black text-white/30 tracking-[0.5em]">
+                    <Terminal class="w-4 h-4" /> // BRAIN_DUMP
+                  </div>
+                  <!-- Markdown Toolbar (Visible when editing) -->
+                  <div v-if="isEditingDescription" class="flex items-center gap-1 animate-in fade-in slide-in-from-right-2 duration-300">
+                    <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('# ', '')"><Heading class="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('**', '**')"><Bold class="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('_', '_')"><Italic class="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('- ', '')"><ListIcon class="w-3.5 h-3.5" /></Button>
+                    <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('`', '`')"><CodeIcon class="w-3.5 h-3.5" /></Button>
+                  </div>
                 </div>
-                <div v-if="!isEditingDescription" @click="isEditingDescription = true" class="w-full min-h-[400px] bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] text-white/80 hover:border-white/20 transition-all cursor-text prose prose-invert max-w-none prose-lg font-mono leading-relaxed shadow-inner" v-html="renderedDescription"></div>
-                <textarea v-else v-model="selectedCard.description" v-focus @blur="isEditingDescription = false" placeholder="Inject system data..." class="w-full min-h-[400px] bg-white/[0.03] border border-white/20 p-8 rounded-[2rem] text-xl text-white outline-none transition-all resize-none font-mono leading-relaxed"></textarea>
+
+                <div v-if="!isEditingDescription" 
+                  @click="startEditingDescription"
+                  class="w-full min-h-[400px] bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] text-white/80 hover:border-white/20 transition-all cursor-text prose prose-invert max-w-none prose-lg font-mono leading-relaxed shadow-inner"
+                  v-html="renderedDescription"
+                ></div>
+
+                <textarea v-else
+                  v-model="selectedCard.description" 
+                  @blur="isEditingDescription = false"
+                  placeholder="Inject system data..." 
+                  class="description-textarea w-full min-h-[400px] bg-white/[0.03] border border-white/20 p-8 rounded-[2rem] text-xl text-white outline-none transition-all resize-none font-mono leading-relaxed"
+                ></textarea>
+
               </div>
             </ScrollArea>
           </div>
@@ -370,7 +440,11 @@ const vFocus = {
                   <div class="space-y-4">
                     <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Identifier_Tags</div>
                     <div class="flex flex-wrap gap-2">
-                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase flex items-center gap-2 bg-white/5" :style="{ color: tag.color }">{{ tag.text }}<X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="selectedCard.tags = selectedCard.tags.filter(t => t.id !== tag.id)" /></div>
+                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase flex items-center gap-2 bg-white/5" :style="{ color: tag.color }">
+                        {{ tag.text }}
+                        <X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="removeTag(tag.id)" />
+                      </div>
+
                       <DropdownMenu><DropdownMenuTrigger as-child><button class="h-6 px-4 rounded-full border border-dashed border-white/10 text-white/20 text-[9px] font-black hover:text-white transition-all">+</button></DropdownMenuTrigger><DropdownMenuContent class="bg-black/95 border-white/20 p-6 w-72 backdrop-blur-3xl rounded-2xl"><div class="space-y-6"><Input v-model="newTagText" v-focus placeholder="Tag Name..." class="bg-white/5 h-12 text-sm font-bold" @keyup.enter="addTag" /><div class="grid grid-cols-6 gap-3"><button v-for="c in tagColors" :key="c" class="w-full aspect-square rounded-full" :style="{ backgroundColor: c }" :class="selectedTagColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''" @click="selectedTagColor = c"></button></div><Button class="w-full bg-white text-black font-black h-12 rounded-xl" @click="addTag">APPLY</Button></div></DropdownMenuContent></DropdownMenu>
                     </div>
                   </div>
