@@ -208,27 +208,42 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
       @mouseenter="isSidebarHovered = true"
       @mouseleave="isSidebarHovered = false; hoveredProjectId = null"
     >
-      <!-- Logo: Aligned with Header -->
+      <!-- Logo Area: Fixed Icon Centering & Fluid Text -->
       <div 
-        class="h-16 border-b border-white/10 flex flex-col items-center justify-center cursor-pointer no-drag group/logo shrink-0"
+        class="h-16 border-b border-white/10 flex items-center cursor-pointer no-drag group/logo shrink-0 relative overflow-hidden"
         @click="currentView = 'projects'; selectedProjectId = null; selectedBoardId = null"
       >
-        <div class="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-xs shadow-[0_0_20px_rgba(255,255,255,0.2)] group-hover/logo:scale-110 transition-all duration-500">
-          TD
+        <!-- Fixed icon container (Matches minimized width w-16 = 64px) -->
+        <div class="w-16 h-full flex items-center justify-center shrink-0 z-10">
+          <div class="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center font-black text-[10px] shadow-[0_0_15px_rgba(255,255,255,0.3)] group-hover/logo:scale-110 transition-all duration-500">
+            TD
+          </div>
+        </div>
+        
+        <!-- Sliding Text -->
+        <div 
+          class="flex items-center transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]"
+          :class="isSidebarHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8 pointer-events-none'"
+        >
+          <span class="text-lg font-black tracking-tighter whitespace-nowrap uppercase italic">
+            ToDo<span class="text-white/20">Pro</span>
+          </span>
         </div>
       </div>
 
       <!-- Navigation -->
       <div class="flex-1 flex flex-col min-h-0 pt-4">
         <!-- Search -->
-        <div class="px-3 mb-4">
+        <div class="mb-4">
           <button 
             @click="isSearchOpen = true"
-            class="w-full flex items-center h-10 rounded-xl transition-all duration-300"
-            :class="isSidebarHovered ? 'px-3 bg-white/5 hover:bg-white/10' : 'justify-center hover:bg-white/5'"
+            class="w-full flex items-center h-10 transition-all duration-300 group/search no-drag"
+            :class="isSidebarHovered ? 'px-3 bg-white/5 hover:bg-white/10' : 'justify-center'"
           >
-            <Search class="w-4 h-4 shrink-0 text-white/40" />
-            <span v-if="isSidebarHovered" class="ml-3 text-xs font-bold text-white/60">Suche</span>
+            <div class="w-16 h-full flex items-center justify-center shrink-0">
+              <Search class="w-4 h-4 text-white/40 group-hover/search:text-white transition-colors" />
+            </div>
+            <span v-if="isSidebarHovered" class="ml-0 text-xs font-bold text-white/60 group-hover/search:text-white transition-all duration-500 animate-in fade-in slide-in-from-left-2">Suche</span>
           </button>
         </div>
 
@@ -246,7 +261,7 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
               >
                 <button 
                   @click="navigateToProject(project.id)"
-                  class="w-full flex items-center h-10 rounded-xl transition-all duration-300 relative group/item"
+                  class="w-full flex items-center h-10 transition-all duration-300 relative group/item no-drag"
                   :class="[
                     selectedProjectId === project.id 
                       ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
@@ -254,10 +269,13 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
                     !isSidebarHovered && 'justify-center'
                   ]"
                 >
-                  <div class="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 transition-colors" :class="selectedProjectId === project.id ? 'bg-black/10' : 'bg-white/5 border border-white/5'">
-                    {{ getFirstLetter(project.title) }}
+                  <div class="w-16 h-full flex items-center justify-center shrink-0">
+                    <div class="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black transition-colors" :class="selectedProjectId === project.id ? 'bg-black/10' : 'bg-white/5 border border-white/5'">
+                      {{ getFirstLetter(project.title) }}
+                    </div>
                   </div>
-                  <span v-if="isSidebarHovered" class="ml-3 text-xs font-bold truncate tracking-tight uppercase">{{ project.title }}</span>
+                  <span v-if="isSidebarHovered" class="ml-0 text-xs font-bold truncate tracking-tight uppercase transition-all duration-500 animate-in fade-in slide-in-from-left-2">{{ project.title }}</span>
+                  <div v-if="selectedProjectId === project.id && isSidebarHovered" class="absolute left-0 w-1 h-4 bg-white rounded-r-full"></div>
                 </button>
 
                 <!-- Boards on Hover -->
@@ -402,11 +420,42 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
                   </DropdownMenu>
                 </div>
                 <h3 class="text-xl font-black tracking-tighter uppercase italic text-white/90 group-hover:text-white transition-colors">{{ board.title }}</h3>
-                <div class="space-y-3">
-                  <div class="flex h-1.5 gap-1 rounded-full overflow-hidden bg-white/5 p-0.5 border border-white/5">
-                    <div v-for="(column, idx) in board.columns" :key="column.id" class="h-full transition-all duration-1000 ease-out" :class="[idx % 3 === 0 ? 'bg-white/40' : (idx % 3 === 1 ? 'bg-white/20' : 'bg-white/10'), column.cards.length === 0 && 'hidden']" :style="{ width: (column.cards.length / Math.max(1, board.columns.reduce((acc, c) => acc + c.cards.length, 0)) * 100) + '%' }"></div>
+                
+                <div class="space-y-4">
+                  <!-- Advanced Distribution Bar -->
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-[7px] font-black text-white/30 uppercase tracking-[0.2em]">
+                      <span>Load_Distribution</span>
+                      <span class="text-white/60">{{ Math.round((board.columns.find(c => c.title.toLowerCase().includes('done'))?.cards.length || 0) / Math.max(1, board.columns.reduce((acc, c) => acc + c.cards.length, 0)) * 100) }}% Complete</span>
+                    </div>
+                    <div class="flex h-1.5 gap-0.5 rounded-full overflow-hidden bg-white/5 border border-white/5 p-[1px]">
+                      <div 
+                        v-for="(column, idx) in board.columns" 
+                        :key="column.id"
+                        class="h-full transition-all duration-1000 ease-out"
+                        :class="[
+                          column.title.toLowerCase().includes('done') ? 'bg-green-500/60' : 
+                          (column.title.toLowerCase().includes('progress') ? 'bg-blue-500/60' : 'bg-white/20'),
+                          column.cards.length === 0 && 'hidden'
+                        ]"
+                        :style="{ width: (column.cards.length / Math.max(1, board.columns.reduce((acc, c) => acc + c.cards.length, 0)) * 100) + '%' }"
+                      ></div>
+                    </div>
                   </div>
-                  <div class="flex items-center justify-between text-[8px] font-black text-white/20 uppercase tracking-widest italic"><span>Diagnostic_Link</span><span>Total: {{ board.columns.reduce((acc, col) => acc + col.cards.length, 0) }}</span></div>
+
+                  <!-- System Metadata -->
+                  <div class="flex items-center justify-between border-t border-white/5 pt-3">
+                    <div class="flex flex-col">
+                      <span class="text-[7px] font-black text-white/20 uppercase tracking-widest">Process_Status</span>
+                      <span class="text-[9px] font-mono uppercase" :class="board.columns.reduce((acc, c) => acc + c.cards.length, 0) > 12 ? 'text-red-500/70' : 'text-green-500/70'">
+                        {{ board.columns.reduce((acc, c) => acc + c.cards.length, 0) > 12 ? 'High_Load' : 'Optimal' }}
+                      </span>
+                    </div>
+                    <div class="text-right flex flex-col">
+                      <span class="text-[7px] font-black text-white/20 uppercase tracking-widest">Data_Stack</span>
+                      <span class="text-[10px] font-black text-white/40 italic">{{ board.columns.reduce((acc, col) => acc + col.cards.length, 0).toString().padStart(2, '0') }} Units</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="bracket bracket-tl"></div><div class="bracket bracket-tr"></div><div class="bracket bracket-bl"></div><div class="bracket bracket-br"></div>
