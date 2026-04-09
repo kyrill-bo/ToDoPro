@@ -1,70 +1,91 @@
-import { app as o, ipcMain as n, BrowserWindow as c, shell as f, nativeImage as p, Tray as h, Menu as y } from "electron";
-import l from "path";
-import { fileURLToPath as g } from "url";
-import r from "fs";
-const D = g(import.meta.url), E = l.dirname(D), T = o.getPath("userData"), a = l.join(T, "db.json");
-let i = null, e = null;
-function d() {
-  r.existsSync(a) || r.writeFileSync(a, JSON.stringify({ projects: [], boards: [] }, null, 2));
+import { app, ipcMain, BrowserWindow, shell } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+const __filename$1 = fileURLToPath(import.meta.url);
+const __dirname$1 = path.dirname(__filename$1);
+const userDataPath = app.getPath("userData");
+const DB_FILE = path.join(userDataPath, "db.json");
+let win = null;
+function initDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    console.log("Initializing fresh DB at:", DB_FILE);
+    fs.writeFileSync(DB_FILE, JSON.stringify({ projects: [], boards: [] }, null, 2));
+  } else {
+    console.log("Database found at:", DB_FILE);
+  }
 }
-function u() {
-  e = new c({
+function createWindow() {
+  win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 600,
     title: "ToDo Pro",
-    frame: !1,
-    // Remove native title bar and borders
-    transparent: !0,
+    frame: false,
+    transparent: true,
     webPreferences: {
-      nodeIntegration: !0,
-      contextIsolation: !1
+      nodeIntegration: true,
+      contextIsolation: false
     },
     backgroundColor: "#000000"
-  }), process.env.VITE_DEV_SERVER_URL ? e.loadURL(process.env.VITE_DEV_SERVER_URL) : e.loadFile(l.join(E, "../dist/index.html")), e.webContents.setWindowOpenHandler(({ url: t }) => (f.openExternal(t), { action: "deny" })), e.on("close", (t) => (o.isQuitting || (t.preventDefault(), e == null || e.hide()), !1));
-}
-n.on("window-minimize", () => e == null ? void 0 : e.minimize());
-n.on("window-maximize", () => {
-  e != null && e.isMaximized() ? e.unmaximize() : e == null || e.maximize();
-});
-n.on("window-close", () => e == null ? void 0 : e.close());
-n.handle("get-data", () => {
-  try {
-    d();
-    const t = r.readFileSync(a, "utf8");
-    return JSON.parse(t);
-  } catch (t) {
-    return console.error("Failed to read DB:", t), { projects: [], boards: [] };
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(__dirname$1, "../dist/index.html"));
   }
-});
-n.handle("save-data", (t, s) => {
-  try {
-    return r.writeFileSync(a, JSON.stringify(s, null, 2)), { success: !0 };
-  } catch (m) {
-    return console.error("Failed to save DB:", m), { success: !1 };
-  }
-});
-function _() {
-  const t = p.createEmpty();
-  i = new h(t);
-  const s = y.buildFromTemplate([
-    { label: "ToDo Pro öffnen", click: () => e == null ? void 0 : e.show() },
-    { type: "separator" },
-    { label: "Beenden", click: () => {
-      o.isQuitting = !0, o.quit();
-    } }
-  ]);
-  i.setToolTip("ToDo Pro"), i.setContextMenu(s), i.on("click", () => {
-    e != null && e.isVisible() ? e.hide() : e == null || e.show();
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url !== (win == null ? void 0 : win.webContents.getURL())) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+  win.on("closed", () => {
+    win = null;
   });
 }
-o.whenReady().then(() => {
-  d(), u(), _();
+ipcMain.on("window-minimize", () => win == null ? void 0 : win.minimize());
+ipcMain.on("window-maximize", () => {
+  if (win == null ? void 0 : win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win == null ? void 0 : win.maximize();
+  }
 });
-o.on("window-all-closed", () => {
-  process.platform !== "darwin" && o.quit();
+ipcMain.on("window-close", () => win == null ? void 0 : win.close());
+ipcMain.handle("get-data", () => {
+  try {
+    initDB();
+    const data = fs.readFileSync(DB_FILE, "utf8");
+    console.log("Data fetched from DB.");
+    return JSON.parse(data);
+  } catch (e) {
+    console.error("Failed to read DB:", e);
+    return { projects: [], boards: [] };
+  }
 });
-o.on("activate", () => {
-  c.getAllWindows().length === 0 && u();
+ipcMain.handle("save-data", (event, data) => {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    console.log("Data successfully committed to disk.");
+    return { success: true };
+  } catch (e) {
+    console.error("Failed to save DB:", e);
+    return { success: false };
+  }
+});
+app.whenReady().then(() => {
+  initDB();
+  createWindow();
+});
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

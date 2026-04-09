@@ -1,261 +1,201 @@
-import { defineStore } from 'pinia';
-import { ref, watch } from 'vue';
-import type { Project, Board, Card } from '@/types';
-
-// Detect if running in Electron
-const isElectron = typeof window !== 'undefined' && 
-                   (window as any).process && 
-                   (window as any).process.type === 'renderer';
+import { defineStore } from 'pinia'
+import { ref, watch } from 'vue'
+import type { Project, Board, Column, Card } from '@/types'
 
 export const useTodoStore = defineStore('todo', () => {
-  const projects = ref<Project[]>([]);
-  const boards = ref<Board[]>([]);
-  const isLoading = ref(true);
-  let isInitialLoad = true;
+  const projects = ref<Project[]>([])
+  const boards = ref<Board[]>([])
+  const isInitialLoad = ref(true)
 
-  // Load from File (API or Electron IPC)
-  async function loadData() {
-    try {
-      isLoading.value = true;
-      let data;
-      
-      if (isElectron) {
-        const { ipcRenderer } = (window as any).require('electron');
-        data = await ipcRenderer.invoke('get-data');
-      } else {
-        const res = await fetch('/api/data');
-        data = await res.json();
+  const isElectron = !!(window as any).ipcRenderer || (!!(window as any).require && !!(window as any).require('electron'))
+
+  const loadData = async () => {
+    isInitialLoad.value = true
+    console.log('Starting data synchronization...')
+    
+    if (isElectron) {
+      try {
+        const data = await (window as any).ipcRenderer.invoke('get-data')
+        if (data) {
+          projects.value = data.projects || []
+          boards.value = data.boards || []
+          console.log('Electron DB synced successfully.')
+        }
+      } catch (e) {
+        console.error('Failed to load from Electron:', e)
       }
-      
-      projects.value = data.projects || [];
-      boards.value = data.boards || [];
-      
-      // ONLY init sample data if the database is truly empty
-      if (projects.value.length === 0 && boards.value.length === 0) {
-        initSampleData();
+    } else {
+      const data = localStorage.getItem('todo-pro-data')
+      if (data) {
+        const parsed = JSON.parse(data)
+        projects.value = parsed.projects || []
+        boards.value = parsed.boards || []
       }
-      
-      setTimeout(() => {
-        isInitialLoad = false;
-      }, 500);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      isInitialLoad = false;
-    } finally {
-      isLoading.value = false;
     }
+    
+    // Crucial: Wait for reactive system to settle before enabling save
+    setTimeout(() => {
+      isInitialLoad.value = false
+      console.log('Save-monitor active.')
+    }, 500)
   }
 
-  // Save to File (API or Electron IPC)
-  async function saveData() {
-    if (isInitialLoad) return;
-    try {
-      const payload = {
-        projects: projects.value,
-        boards: boards.value
-      };
+  const saveData = async () => {
+    if (isInitialLoad.value) return
 
-      if (isElectron) {
-        const { ipcRenderer } = (window as any).require('electron');
-        await ipcRenderer.invoke('save-data', payload);
-      } else {
-        await fetch('/api/save', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+    const data = {
+      projects: projects.value,
+      boards: boards.value
+    }
+
+    if (isElectron) {
+      try {
+        await (window as any).ipcRenderer.invoke('save-data', JSON.parse(JSON.stringify(data)))
+      } catch (e) {
+        console.error('Failed to save to Electron:', e)
       }
-    } catch (error) {
-      console.error('Failed to save data:', error);
+    } else {
+      localStorage.setItem('todo-pro-data', JSON.stringify(data))
     }
   }
 
   watch([projects, boards], () => {
-    saveData();
-  }, { deep: true });
+    saveData()
+  }, { deep: true })
 
-  loadData();
+  // ACTIONS
+  const addProject = (title: string, description: string) => {
+    projects.value.push({ id: crypto.randomUUID(), title, description, createdAt: Date.now() })
+  }
 
-  // Project Actions
-  function addProject(title: string, description?: string) {
-    const newProject: Project = {
+  const updateProject = (id: string, updates: Partial<Project>) => {
+    const index = projects.value.findIndex(p => p.id === id)
+    if (index !== -1) projects.value[index] = { ...projects.value[index], ...updates }
+  }
+
+  const deleteProject = (id: string) => {
+    projects.value = projects.value.filter(p => p.id !== id)
+    boards.value = boards.value.filter(b => b.projectId !== id)
+  }
+
+  const addBoard = (projectId: string, title: string) => {
+    boards.value.push({
       id: crypto.randomUUID(),
-      title,
-      description,
-      createdAt: Date.now(),
-    };
-    projects.value.push(newProject);
-    return newProject;
-  }
-
-  function deleteProject(id: string) {
-    projects.value = projects.value.filter(p => p.id !== id);
-    boards.value = boards.value.filter(b => b.projectId !== id);
-  }
-
-  function updateProject(id: string, updates: Partial<Project>) {
-    const project = projects.value.find(p => p.id === id);
-    if (project) {
-      Object.assign(project, updates);
-    }
-  }
-
-  // Board Actions
-  function addBoard(projectId: string, title: string) {
-    const newBoard: Board = {
-      id: crypto.randomUUID(),
-      title,
       projectId,
+      title,
       columns: [
         { id: crypto.randomUUID(), title: 'To Do', cards: [] },
         { id: crypto.randomUUID(), title: 'In Progress', cards: [] },
-        { id: crypto.randomUUID(), title: 'Done', cards: [] },
-      ],
-    };
-    boards.value.push(newBoard);
-    return newBoard;
+        { id: crypto.randomUUID(), title: 'Done', cards: [] }
+      ]
+    })
   }
 
-  function deleteBoard(id: string) {
-    boards.value = boards.value.filter(b => b.id !== id);
+  const updateBoard = (id: string, title: string) => {
+    const board = boards.value.find(b => b.id === id)
+    if (board) board.title = title
   }
 
-  function updateBoard(id: string, title: string) {
-    const board = boards.value.find(b => b.id === id);
+  const deleteBoard = (id: string) => {
+    boards.value = boards.value.filter(b => b.id !== id)
+  }
+
+  const addColumn = (boardId: string, title: string) => {
+    const board = boards.value.find(b => b.id === boardId)
+    if (board) board.columns.push({ id: crypto.randomUUID(), title, cards: [] })
+  }
+
+  const updateColumn = (boardId: string, columnId: string, title: string) => {
+    const board = boards.value.find(b => b.id === boardId)
     if (board) {
-      board.title = title;
+      const column = board.columns.find(c => c.id === columnId)
+      if (column) column.title = title
     }
   }
 
-  function getBoardById(id: string) {
-    return boards.value.find(b => b.id === id);
+  const deleteColumn = (boardId: string, columnId: string) => {
+    const board = boards.value.find(b => b.id === boardId)
+    if (board) board.columns = board.columns.filter(c => c.id !== columnId)
   }
 
-  function getBoardsByProject(projectId: string) {
-    return boards.value.filter(b => b.projectId === projectId);
-  }
-
-  // Column Actions
-  function addColumn(boardId: string, title: string) {
-    const board = getBoardById(boardId);
+  const addCard = (boardId: string, columnId: string, title: string) => {
+    const board = boards.value.find(b => b.id === boardId)
     if (board) {
-      board.columns.push({
-        id: crypto.randomUUID(),
-        title,
-        cards: [],
-      });
-    }
-  }
-
-  function deleteColumn(boardId: string, columnId: string) {
-    const board = getBoardById(boardId);
-    if (board) {
-      board.columns = board.columns.filter(c => c.id !== columnId);
-    }
-  }
-
-  function updateColumn(boardId: string, columnId: string, title: string) {
-    const board = getBoardById(boardId);
-    if (board) {
-      const column = board.columns.find(c => c.id === columnId);
-      if (column) {
-        column.title = title;
-      }
-    }
-  }
-
-  // Card Actions
-  function addCard(boardId: string, columnId: string, title: string, description?: string) {
-    const board = getBoardById(boardId);
-    if (board) {
-      const column = board.columns.find(c => c.id === columnId);
+      const column = board.columns.find(c => c.id === columnId)
       if (column) {
         column.cards.push({
           id: crypto.randomUUID(),
           title,
-          description,
-          comments: [],
-          checklists: [],
-          tags: [],
+          description: '',
           color: 'transparent',
-          createdAt: Date.now(),
-        });
+          tags: [],
+          checklists: [],
+          comments: [],
+          createdAt: Date.now()
+        })
       }
     }
   }
 
-  function updateCard(boardId: string, columnId: string, cardId: string, updates: Partial<Card>) {
-    const board = getBoardById(boardId);
+  const updateCard = (boardId: string, columnId: string, cardId: string, updates: Partial<Card>) => {
+    const board = boards.value.find(b => b.id === boardId)
     if (board) {
-      const column = board.columns.find(c => c.id === columnId);
+      const column = board.columns.find(c => c.id === columnId)
       if (column) {
-        const card = column.cards.find(c => c.id === cardId);
-        if (card) {
-          Object.assign(card, updates);
-        }
+        const index = column.cards.findIndex(c => c.id === cardId)
+        if (index !== -1) column.cards[index] = { ...column.cards[index], ...updates }
       }
     }
   }
 
-  function addComment(boardId: string, columnId: string, cardId: string, text: string) {
-    const board = getBoardById(boardId);
+  const deleteCard = (boardId: string, columnId: string, cardId: string) => {
+    const board = boards.value.find(b => b.id === boardId)
     if (board) {
-      const column = board.columns.find(c => c.id === columnId);
-      if (column) {
-        const card = column.cards.find(c => c.id === cardId);
-        if (card) {
-          card.comments.push({
-            id: crypto.randomUUID(),
-            text,
-            createdAt: Date.now()
-          });
-        }
-      }
+      const column = board.columns.find(c => c.id === columnId)
+      if (column) column.cards = column.cards.filter(c => c.id !== cardId)
     }
   }
 
-  function deleteCard(boardId: string, columnId: string, cardId: string) {
-    const board = getBoardById(boardId);
+  const addComment = (boardId: string, columnId: string, cardId: string, text: string) => {
+    const board = boards.value.find(b => b.id === boardId)
     if (board) {
-      const column = board.columns.find(c => c.id === columnId);
+      const column = board.columns.find(c => c.id === columnId)
       if (column) {
-        column.cards = column.cards.filter(c => c.id !== cardId);
+        const card = column.cards.find(c => c.id === cardId)
+        if (card) card.comments.push({ id: crypto.randomUUID(), text, createdAt: Date.now() })
       }
     }
   }
 
-  function initSampleData() {
-    const p1 = addProject('Willkommen!', 'Dies ist deine neue ToDo App.');
-    const b1 = addBoard(p1.id, 'Mein erstes Board');
-    addCard(b1.id, b1.columns[0].id, 'Entdecke die Features');
-    addCard(b1.id, b1.columns[0].id, 'Bearbeite Projekte und Spalten');
-    addCard(b1.id, b1.columns[1].id, 'Viel Erfolg!');
+  const getBoardsByProject = (projectId: string) => boards.value.filter(b => b.projectId === projectId)
+  const getBoardById = (id: string) => boards.value.find(b => b.id === id)
+
+  const importData = (data: { projects: Project[], boards: Board[] }) => {
+    isInitialLoad.value = true
+    projects.value = data.projects
+    boards.value = data.boards
+    setTimeout(() => {
+      isInitialLoad.value = false
+      saveData()
+    }, 500)
   }
 
-  function importData(data: { projects: Project[], boards: Board[] }) {
-    projects.value = data.projects || [];
-    boards.value = data.boards || [];
+  const clearData = () => {
+    isInitialLoad.value = true
+    projects.value = []
+    boards.value = []
+    setTimeout(() => {
+      isInitialLoad.value = false
+      saveData()
+    }, 100)
   }
+
+  loadData()
 
   return {
-    projects,
-    boards,
-    isLoading,
-    addProject,
-    deleteProject,
-    updateProject,
-    addBoard,
-    deleteBoard,
-    updateBoard,
-    getBoardById,
-    getBoardsByProject,
-    addColumn,
-    deleteColumn,
-    updateColumn,
-    addCard,
-    updateCard,
-    addComment,
-    deleteCard,
-    importData,
-  };
-});
+    projects, boards, addProject, updateProject, deleteProject,
+    addBoard, updateBoard, deleteBoard, addColumn, updateColumn, deleteColumn,
+    addCard, updateCard, deleteCard, addComment, getBoardsByProject, getBoardById,
+    importData, loadData, clearData
+  }
+})

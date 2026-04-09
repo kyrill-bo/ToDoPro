@@ -34,16 +34,16 @@
       "db.json"
     ],
     "mac": {
-      "icon": "public/logo.jpg",
+      "icon": "public/logo.png",
       "target": "dmg",
       "category": "public.app-category.productivity"
     },
     "win": {
-      "icon": "public/logo.jpg",
+      "icon": "public/logo.png",
       "target": "nsis"
     },
     "linux": {
-      "icon": "public/logo.jpg",
+      "icon": "public/logo.png",
       "target": "AppImage"
     }
   },

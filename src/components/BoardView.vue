@@ -38,6 +38,13 @@ import { VisuallyHidden } from 'reka-ui'
 import { marked } from 'marked'
 import type { Card as CardType } from '@/types'
 
+// Configure marked to add target="_blank" to all links
+const renderer = new marked.Renderer()
+renderer.link = ({ href, title, text }) => {
+  return `<a href="${href}" title="${title || ''}" target="_blank" rel="noopener noreferrer">${text}</a>`
+}
+marked.setOptions({ renderer })
+
 const props = defineProps<{
   boardId: string
 }>()

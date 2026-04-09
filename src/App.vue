@@ -5,7 +5,11 @@ import {
   Settings, 
   Plus, 
   MoreVertical,
+  Trash2,
   ArrowLeft,
+  Download,
+  Upload,
+  ShieldCheck,
   Search,
   Layout,
   Minus,
@@ -137,6 +141,45 @@ const goBack = () => {
   }
 }
 
+const importFileRef = ref<HTMLInputElement | null>(null)
+
+const handleExport = () => {
+  const data = { projects: store.projects, boards: store.boards }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `todo-pro-backup-${new Date().toISOString().split('T')[0]}.json`; a.click(); URL.revokeObjectURL(url)
+}
+
+const handleImport = (event: Event) => {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    try {
+      const content = e.target?.result as string; const data = JSON.parse(content)
+      if (data.projects && data.boards) { 
+        store.importData(data)
+        isSettingsOpen.value = false
+        currentView.value = 'projects'
+        selectedProjectId.value = null
+        selectedBoardId.value = null
+      }
+    } catch (err) { console.error(err) }
+  }
+  reader.readAsText(file)
+}
+
+const triggerImport = () => importFileRef.value?.click()
+
+const handleReset = () => {
+  if (confirm('Bist du sicher? Alle Projekte und Aufgaben werden unwiderruflich gelöscht.')) {
+    store.clearData()
+    isSettingsOpen.value = false
+    currentView.value = 'projects'
+    selectedProjectId.value = null
+    selectedBoardId.value = null
+  }
+}
+
 // Window Controls
 const minimizeWindow = () => {
   const electron = (window as any).require ? (window as any).require('electron') : null
@@ -180,16 +223,13 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
       @mouseenter="isSidebarHovered = true"
       @mouseleave="isSidebarHovered = false; hoveredProjectId = null"
     >
-      <!-- Logo Area: Fixed Icon Centering & Fluid Text -->
       <div 
         class="h-16 border-b border-white/10 flex items-center cursor-pointer no-drag group/logo shrink-0 relative overflow-hidden"
         @click="currentView = 'projects'; selectedProjectId = null; selectedBoardId = null"
       >
         <!-- Fixed icon container (Matches minimized width w-16 = 64px) -->
         <div class="w-16 h-full flex items-center justify-center shrink-0 z-10">
-          <div class="w-7 h-7 rounded-lg bg-white text-black flex items-center justify-center font-black text-[10px] shadow-[0_0_15px_rgba(255,255,255,0.3)] group-hover/logo:scale-110 transition-all duration-500">
-            TD
-          </div>
+          <img src="/logo.png" class="w-8 h-8 rounded-lg object-cover shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover/logo:scale-110 transition-all duration-500" alt="Logo" />
         </div>
         
         <!-- Sliding Text -->
@@ -275,25 +315,25 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
           </div>
         </ScrollArea>
       </div>
+<!-- Settings Button -->
+<div class="p-3 border-t border-white/10">
+  <button 
+    @click="isSettingsOpen = true"
+    class="w-full flex items-center h-10 rounded-xl transition-all duration-300 no-drag group/settings"
+    :class="isSidebarHovered ? 'px-3 bg-white/5 hover:bg-white/10' : 'justify-center hover:bg-white/5'"
+  >
+    <Settings class="w-4 h-4 text-white/40 group-hover/settings:text-white transition-colors" />
+    <span v-if="isSidebarHovered" class="ml-3 text-xs font-bold text-white/60 group-hover/settings:text-white uppercase tracking-widest animate-in fade-in slide-in-from-left-2 duration-500">Settings</span>
+  </button>
+</div>
+</aside>
 
-      <!-- Settings -->
-      <div class="p-3 border-t border-white/10">
-        <button 
-          @click="isSettingsOpen = true"
-          class="w-full flex items-center h-10 rounded-xl transition-all duration-300"
-          :class="isSidebarHovered ? 'px-3 bg-white/5 hover:bg-white/10' : 'justify-center hover:bg-white/5'"
-        >
-          <Settings class="w-4 h-4 text-white/40" />
-          <span v-if="isSidebarHovered" class="ml-3 text-xs font-bold text-white/60 uppercase tracking-widest">Settings</span>
-        </button>
-      </div>
-    </aside>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col min-w-0 bg-black relative">
 
-    <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col min-w-0 bg-black relative">
-      
-      <!-- HEADER -->
-      <header class="h-16 flex items-center justify-between px-8 border-b border-white/10 relative z-40 bg-black/50 backdrop-blur-md">
+  <!-- HEADER -->
+  <header class="h-16 flex items-center justify-between px-8 border-b border-white/10 relative z-40 bg-black/50 backdrop-blur-md">
+
         <!-- Draggable Zone (Behind Everything) -->
         <div class="absolute inset-0 drag-region"></div>
 
@@ -441,6 +481,48 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
     </div>
 
     <!-- Modals -->
+    <Dialog v-model:open="isSettingsOpen">
+      <DialogContent class="bg-black/95 backdrop-blur-3xl border border-white/20 text-white rounded-[2rem] p-10 max-w-md">
+        <DialogHeader class="space-y-4">
+          <DialogTitle class="text-3xl font-black italic uppercase tracking-tighter">System_Settings</DialogTitle>
+          <DialogDescription class="text-white/30 uppercase text-[10px] font-bold tracking-[0.3em]">Hardware_Configuration_Interface</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-8 py-8">
+          <div class="space-y-4">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">Data_Operations</h3>
+            <div class="grid grid-cols-1 gap-3">
+              <div class="flex gap-3">
+                <Button variant="outline" class="flex-1 justify-start gap-4 bg-white/5 border-white/10 hover:bg-white/10 text-white h-14 rounded-2xl no-drag group" @click="handleExport">
+                  <Download class="w-5 h-5 text-white/20 group-hover:text-white" />
+                  <div class="text-left"><div class="text-xs font-black uppercase italic">Export</div><div class="text-[7px] text-white/20 uppercase font-bold">Save Backup</div></div>
+                </Button>
+                <div class="flex-1 relative">
+                  <input type="file" ref="importFileRef" class="hidden" accept=".json" @change="handleImport" />
+                  <Button variant="outline" class="w-full justify-start gap-4 bg-white/5 border-white/10 hover:bg-white/10 text-white h-14 rounded-2xl no-drag group" @click="triggerImport">
+                    <Upload class="w-5 h-5 text-white/20 group-hover:text-white" />
+                    <div class="text-left"><div class="text-xs font-black uppercase italic">Import</div><div class="text-[7px] text-white/20 uppercase font-bold">Load Backup</div></div>
+                  </Button>
+                </div>
+              </div>
+              
+              <Button variant="outline" class="justify-start gap-4 bg-red-500/5 border-red-500/10 hover:bg-red-500/10 text-red-500 h-14 rounded-2xl no-drag group" @click="handleReset">
+                <Trash2 class="w-5 h-5 text-red-500/20 group-hover:text-red-500" />
+                <div class="text-left"><div class="text-xs font-black uppercase italic">Wipe_System</div><div class="text-[7px] text-red-500/20 uppercase font-bold">Delete all data permanently</div></div>
+              </Button>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <h3 class="text-[10px] font-black uppercase tracking-[0.2em] text-white/20">Core_Status</h3>
+            <div class="p-5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between shadow-inner">
+              <div class="flex items-center gap-4"><ShieldCheck class="w-6 h-6 text-green-500/40" /><div class="text-[10px] font-black text-white/60 uppercase tracking-widest">Link: Stable_Production</div></div>
+              <span class="text-[10px] font-black text-white/10 italic">v1.1.0</span>
+            </div>
+          </div>
+        </div>
+        <DialogFooter><Button class="bg-white text-black hover:bg-white/90 font-black px-12 h-14 rounded-full w-full uppercase tracking-widest text-xs" @click="isSettingsOpen = false">Sync_&_Return</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+
     <Dialog v-model:open="isSearchOpen">
       <DialogContent class="max-w-2xl bg-black/95 backdrop-blur-3xl border border-white/30 text-white p-0 overflow-hidden top-[20%] translate-y-0 shadow-[0_0_100px_rgba(0,0,0,1)]">
         <VisuallyHidden><DialogTitle>Globale Suche</DialogTitle><DialogDescription>Suche nach Projekten, Boards oder Karten</DialogDescription></VisuallyHidden>

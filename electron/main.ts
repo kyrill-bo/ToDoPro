@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
@@ -6,15 +6,18 @@ import fs from 'fs'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Persistent Data Path
 const userDataPath = app.getPath('userData')
 const DB_FILE = path.join(userDataPath, 'db.json')
 
-let tray: Tray | null = null
 let win: BrowserWindow | null = null
 
 function initDB() {
   if (!fs.existsSync(DB_FILE)) {
+    console.log('Initializing fresh DB at:', DB_FILE)
     fs.writeFileSync(DB_FILE, JSON.stringify({ projects: [], boards: [] }, null, 2))
+  } else {
+    console.log('Database found at:', DB_FILE)
   }
 }
 
@@ -25,7 +28,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 600,
     title: 'ToDo Pro',
-    frame: false, // Remove native title bar and borders
+    frame: false, 
     transparent: true,
     webPreferences: {
       nodeIntegration: true,
@@ -45,12 +48,15 @@ function createWindow() {
     return { action: 'deny' }
   })
 
-  win.on('close', (event) => {
-    if (!app.isQuitting) {
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== win?.webContents.getURL()) {
       event.preventDefault()
-      win?.hide()
+      shell.openExternal(url)
     }
-    return false
+  })
+
+  win.on('closed', () => {
+    win = null
   })
 }
 
@@ -70,6 +76,7 @@ ipcMain.handle('get-data', () => {
   try {
     initDB()
     const data = fs.readFileSync(DB_FILE, 'utf8')
+    console.log('Data fetched from DB.')
     return JSON.parse(data)
   } catch (e) {
     console.error('Failed to read DB:', e)
@@ -80,6 +87,7 @@ ipcMain.handle('get-data', () => {
 ipcMain.handle('save-data', (event, data) => {
   try {
     fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2))
+    console.log('Data successfully committed to disk.')
     return { success: true }
   } catch (e) {
     console.error('Failed to save DB:', e)
@@ -87,28 +95,9 @@ ipcMain.handle('save-data', (event, data) => {
   }
 })
 
-function createTray() {
-  const icon = nativeImage.createEmpty() 
-  tray = new Tray(icon)
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'ToDo Pro öffnen', click: () => win?.show() },
-    { type: 'separator' },
-    { label: 'Beenden', click: () => {
-      app.isQuitting = true
-      app.quit()
-    }}
-  ])
-  tray.setToolTip('ToDo Pro')
-  tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    win?.isVisible() ? win.hide() : win?.show()
-  })
-}
-
 app.whenReady().then(() => {
   initDB()
   createWindow()
-  createTray()
 })
 
 app.on('window-all-closed', () => {
