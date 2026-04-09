@@ -419,14 +419,53 @@ const vFocus = {
       <!-- Header -->
       <header class="h-20 border-b border-white/20 flex items-end pb-4 justify-between px-8 bg-black relative">
         <div class="absolute inset-0 drag-region pointer-events-none"></div>
-        <div class="flex items-center gap-6 relative z-10 no-drag">
-          <Button v-if="currentView !== 'projects'" variant="ghost" size="icon" class="hover:bg-white/5 rounded-full" @click="goBack"><ArrowLeft class="w-5 h-5" /></Button>
+        <div class="flex items-center gap-4 relative z-10 no-drag">
+          <Button v-if="currentView !== 'projects'" variant="ghost" size="icon" class="hover:bg-white/5 rounded-full" @click="goBack">
+            <ArrowLeft class="w-5 h-5" />
+          </Button>
           <div><h2 class="text-2xl font-black tracking-tighter uppercase italic"><template v-if="currentView === 'projects'">Dashboard</template><template v-else-if="currentView === 'project-detail'">{{ currentProject?.title }}</template><template v-else-if="currentView === 'board-detail'">{{ currentBoard?.title }}</template></h2></div>
         </div>
-        <div v-if="currentView === 'project-detail'" class="relative z-10 no-drag">
-          <Dialog v-model:open="isBoardDialogOpen">
-            <DialogTrigger as-child><Button class="gap-2 bg-white text-black hover:bg-white/90 font-bold rounded-full px-6" @click="openNewBoard"><Plus class="w-4 h-4" />NEUES BOARD</Button></DialogTrigger>
-            <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white"><DialogHeader><DialogTitle>{{ editingBoardId ? 'BOARD BEARBEITEN' : 'BOARD ERSTELLEN' }}</DialogTitle></DialogHeader><div class="space-y-4 py-4"><Input v-model="newBoardTitle" v-focus placeholder="Name..." class="bg-white/5 border-white/10 h-12" /></div><DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button></DialogFooter></DialogContent>
+        
+        <!-- Header Actions (Icons Only) -->
+        <div class="relative z-10 no-drag flex items-center gap-2">
+          <!-- Add Project Button (Only in Dashboard) -->
+          <Dialog v-if="currentView === 'projects'" v-model:open="isProjectDialogOpen">
+            <DialogTrigger as-child>
+              <Button variant="ghost" size="icon" class="w-10 h-10 rounded-full hover:bg-white/10 text-white" @click="openNewProject">
+                <Plus class="w-6 h-6" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
+              <DialogHeader>
+                <DialogTitle>{{ editingProjectId ? 'Projekt bearbeiten' : 'Neues Projekt' }}</DialogTitle>
+                <DialogDescription class="text-white/40">Verwalte deine Aufgaben mit Stil.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-4">
+                <div class="space-y-2">
+                  <label class="text-xs font-semibold text-white/40">TITEL</label>
+                  <Input v-model="newProjectTitle" v-focus placeholder="Projektname..." class="bg-white/5 border-white/10 h-11" />
+                </div>
+                <div class="space-y-2">
+                  <label class="text-xs font-semibold text-white/40">BESCHREIBUNG</label>
+                  <Input v-model="newProjectDescription" placeholder="Kurze Info..." class="bg-white/5 border-white/10 h-11" />
+                </div>
+              </div>
+              <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddProject">{{ editingProjectId ? 'Speichern' : 'Projekt erstellen' }}</Button></DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <!-- Add Board Button (Only in Project Detail) -->
+          <Dialog v-if="currentView === 'project-detail'" v-model:open="isBoardDialogOpen">
+            <DialogTrigger as-child>
+              <Button variant="ghost" size="icon" class="w-10 h-10 rounded-full hover:bg-white/10 text-white" @click="openNewBoard">
+                <Plus class="w-6 h-6" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent class="bg-black/90 backdrop-blur-2xl border-white/10 text-white">
+              <DialogHeader><DialogTitle>{{ editingBoardId ? 'BOARD BEARBEITEN' : 'BOARD ERSTELLEN' }}</DialogTitle></DialogHeader>
+              <div class="space-y-4 py-4"><Input v-model="newBoardTitle" v-focus placeholder="Name..." class="bg-white/5 border-white/10 h-12" /></div>
+              <DialogFooter><Button class="bg-white text-black hover:bg-white/90 w-full" @click="handleAddBoard">{{ editingBoardId ? 'SPEICHERN' : 'ERSTELLEN' }}</Button></DialogFooter>
+            </DialogContent>
           </Dialog>
         </div>
       </header>
@@ -504,32 +543,93 @@ const vFocus = {
             <div class="bracket bracket-bl"></div>
             <div class="bracket bracket-br"></div>
           </div>
-          
-          <!-- Add Project "Ghost" Card -->
-          <button 
-            class="relative group h-auto aspect-square rounded-[2rem] border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 flex flex-col items-center justify-center gap-4 transition-all no-drag"
-            @click="isProjectDialogOpen = true"
-          >
-            <div class="w-16 h-16 rounded-full border border-white/5 flex items-center justify-center text-white/10 group-hover:scale-110 group-hover:text-white group-hover:border-white/20 transition-all duration-500">
-              <Plus class="w-8 h-8" />
-            </div>
-            <div class="flex flex-col items-center">
-              <span class="text-white/10 text-[10px] font-black tracking-[0.3em] uppercase group-hover:text-white/30">Initialize</span>
-              <span class="text-white/20 text-xs font-black tracking-[0.1em] uppercase">New_Project</span>
-            </div>
-          </button>
         </div>
 
         <!-- Project Detail View (Boards List) -->
-        <div v-else-if="currentView === 'project-detail'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card 
+        <div v-else-if="currentView === 'project-detail'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div 
             v-for="board in projectBoards" 
             :key="board.id"
-            class="hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all cursor-pointer aspect-video flex flex-col justify-center items-center relative group bg-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/40 hover:scale-[1.02]"
+            class="relative group cursor-pointer high-tech-hover"
             @click="navigateToBoard(board.id)"
           >
-<div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/40"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditBoard(board)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteBoard(board.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black italic uppercase tracking-tighter text-white/80">{{ board.title }}</CardTitle></Card>
-          <button class="aspect-video border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 transition-all group no-drag" @click="isBoardDialogOpen = true"><div class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 transition-transform"><Plus class="w-5 h-5" /></div><span class="text-white/20 text-xs font-black tracking-[0.2em] uppercase">Board</span></button>
+            <!-- Background & Grid -->
+            <div class="absolute inset-0 bg-white/[0.02] border border-white/10 rounded-[2.5rem] transition-all duration-500 group-hover:bg-white/[0.05] group-hover:border-white/30"></div>
+            <div class="absolute inset-0 tech-grid opacity-10 rounded-[2.5rem]"></div>
+
+            <div class="relative p-8 space-y-8">
+              <!-- Board Diagnostic Header -->
+              <div class="flex justify-between items-start">
+                <div class="relative">
+                  <!-- Pulsing Status Ring -->
+                  <div 
+                    class="absolute inset-0 rounded-full border border-white animate-status-pulse"
+                    :style="{ '--pulse-speed': (board.columns.reduce((acc, col) => acc + col.cards.length, 0) > 10 ? '1s' : '3s') }"
+                  ></div>
+                  <div class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center font-black text-[10px] z-10 relative shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                    NODE
+                  </div>
+                </div>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child @click.stop>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <MoreVertical class="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2">
+                    <DropdownMenuItem @click="openEditBoard(board)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md">
+                      <Settings class="w-4 h-4 mr-2 text-white/40" />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteBoard(board.id)">
+                      <Trash2 class="w-4 h-4 mr-2" />
+                      Löschen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <h3 class="text-2xl font-black tracking-tighter uppercase italic text-white/90">
+                {{ board.title }}
+              </h3>
+
+              <!-- Card Distribution Visualization -->
+              <div class="space-y-4 pt-2">
+                <div class="flex items-center justify-between text-[8px] font-black text-white/20 uppercase tracking-[0.2em]">
+                  <span>Data_Distribution</span>
+                  <span>Total: {{ board.columns.reduce((acc, col) => acc + col.cards.length, 0).toString().padStart(2, '0') }}</span>
+                </div>
+                
+                <div class="flex h-3 gap-1 rounded-full overflow-hidden bg-white/5 p-0.5 border border-white/5">
+                  <div 
+                    v-for="(column, idx) in board.columns" 
+                    :key="column.id"
+                    class="h-full transition-all duration-1000 ease-out first:rounded-l-full last:rounded-r-full"
+                    :class="[
+                      idx % 3 === 0 ? 'bg-white/40' : (idx % 3 === 1 ? 'bg-white/20' : 'bg-white/10'),
+                      column.cards.length === 0 && 'hidden'
+                    ]"
+                    :style="{ width: (column.cards.length / Math.max(1, board.columns.reduce((acc, c) => acc + c.cards.length, 0)) * 100) + '%' }"
+                  ></div>
+                </div>
+
+                <!-- Legend -->
+                <div class="flex flex-wrap gap-x-4 gap-y-2 pt-2">
+                  <div v-for="column in board.columns.slice(0, 3)" :key="column.id" class="flex items-center gap-2">
+                    <div class="w-1 h-1 rounded-full bg-white/40"></div>
+                    <span class="text-[8px] font-bold text-white/40 uppercase">{{ column.title }} ({{ column.cards.length }})</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Brackets -->
+            <div class="bracket bracket-tl"></div>
+            <div class="bracket bracket-tr"></div>
+            <div class="bracket bracket-bl"></div>
+            <div class="bracket bracket-br"></div>
+          </div>
         </div>
 
         <!-- Board Detail View (Kanban) -->
