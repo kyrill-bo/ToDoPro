@@ -1,4 +1,4 @@
-import { app, ipcMain, BrowserWindow, nativeImage, Tray, Menu } from "electron";
+import { app, ipcMain, BrowserWindow, shell, nativeImage, Tray, Menu } from "electron";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
@@ -17,20 +17,27 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 1024,
+    minHeight: 600,
     title: "ToDo Pro",
+    frame: false,
+    // Remove native title bar and borders
+    transparent: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
     },
-    backgroundColor: "#000000",
-    autoHideMenuBar: true,
-    titleBarStyle: "hiddenInset"
+    backgroundColor: "#000000"
   });
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL);
   } else {
     win.loadFile(path.join(__dirname$1, "../dist/index.html"));
   }
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
   win.on("close", (event) => {
     if (!app.isQuitting) {
       event.preventDefault();
@@ -39,23 +46,15 @@ function createWindow() {
     return false;
   });
 }
-function createTray() {
-  const icon = nativeImage.createEmpty();
-  tray = new Tray(icon);
-  const contextMenu = Menu.buildFromTemplate([
-    { label: "ToDo Pro öffnen", click: () => win == null ? void 0 : win.show() },
-    { type: "separator" },
-    { label: "Beenden", click: () => {
-      app.isQuitting = true;
-      app.quit();
-    } }
-  ]);
-  tray.setToolTip("ToDo Pro");
-  tray.setContextMenu(contextMenu);
-  tray.on("click", () => {
-    (win == null ? void 0 : win.isVisible()) ? win.hide() : win == null ? void 0 : win.show();
-  });
-}
+ipcMain.on("window-minimize", () => win == null ? void 0 : win.minimize());
+ipcMain.on("window-maximize", () => {
+  if (win == null ? void 0 : win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win == null ? void 0 : win.maximize();
+  }
+});
+ipcMain.on("window-close", () => win == null ? void 0 : win.close());
 ipcMain.handle("get-data", () => {
   try {
     initDB();
@@ -75,18 +74,31 @@ ipcMain.handle("save-data", (event, data) => {
     return { success: false };
   }
 });
+function createTray() {
+  const icon = nativeImage.createEmpty();
+  tray = new Tray(icon);
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "ToDo Pro öffnen", click: () => win == null ? void 0 : win.show() },
+    { type: "separator" },
+    { label: "Beenden", click: () => {
+      app.isQuitting = true;
+      app.quit();
+    } }
+  ]);
+  tray.setToolTip("ToDo Pro");
+  tray.setContextMenu(contextMenu);
+  tray.on("click", () => {
+    (win == null ? void 0 : win.isVisible()) ? win.hide() : win == null ? void 0 : win.show();
+  });
+}
 app.whenReady().then(() => {
   initDB();
   createWindow();
   createTray();
 });
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  if (process.platform !== "darwin") app.quit();
 });
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

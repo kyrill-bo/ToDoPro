@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, shell } from 'electron'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import fs from 'fs'
@@ -22,14 +22,16 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1280,
     height: 800,
+    minWidth: 1024,
+    minHeight: 600,
     title: 'ToDo Pro',
+    frame: false, // Remove native title bar and borders
+    transparent: true,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
     },
     backgroundColor: '#000000',
-    autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -38,7 +40,11 @@ function createWindow() {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
 
-  // Hide window instead of closing when clicking 'X'
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+
   win.on('close', (event) => {
     if (!app.isQuitting) {
       event.preventDefault()
@@ -48,26 +54,16 @@ function createWindow() {
   })
 }
 
-function createTray() {
-  // Use a simple white dot or the app icon if available
-  const icon = nativeImage.createEmpty() // Placeholder
-  tray = new Tray(icon)
-  
-  const contextMenu = Menu.buildFromTemplate([
-    { label: 'ToDo Pro öffnen', click: () => win?.show() },
-    { type: 'separator' },
-    { label: 'Beenden', click: () => {
-      app.isQuitting = true
-      app.quit()
-    }}
-  ])
-
-  tray.setToolTip('ToDo Pro')
-  tray.setContextMenu(contextMenu)
-  tray.on('click', () => {
-    win?.isVisible() ? win.hide() : win?.show()
-  })
-}
+// Window Control Handlers
+ipcMain.on('window-minimize', () => win?.minimize())
+ipcMain.on('window-maximize', () => {
+  if (win?.isMaximized()) {
+    win.unmaximize()
+  } else {
+    win?.maximize()
+  }
+})
+ipcMain.on('window-close', () => win?.close())
 
 // IPC Handlers for direct file access
 ipcMain.handle('get-data', () => {
@@ -91,6 +87,24 @@ ipcMain.handle('save-data', (event, data) => {
   }
 })
 
+function createTray() {
+  const icon = nativeImage.createEmpty() 
+  tray = new Tray(icon)
+  const contextMenu = Menu.buildFromTemplate([
+    { label: 'ToDo Pro öffnen', click: () => win?.show() },
+    { type: 'separator' },
+    { label: 'Beenden', click: () => {
+      app.isQuitting = true
+      app.quit()
+    }}
+  ])
+  tray.setToolTip('ToDo Pro')
+  tray.setContextMenu(contextMenu)
+  tray.on('click', () => {
+    win?.isVisible() ? win.hide() : win?.show()
+  })
+}
+
 app.whenReady().then(() => {
   initDB()
   createWindow()
@@ -98,13 +112,9 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  if (process.platform !== 'darwin') app.quit()
 })
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow()
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })

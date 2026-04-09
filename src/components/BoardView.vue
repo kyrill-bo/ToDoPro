@@ -55,7 +55,7 @@ const props = defineProps<{
 const store = useTodoStore()
 const board = computed(() => store.getBoardById(props.boardId))
 
-// --- UI STATES ---
+// --- UI STATES (Accordion Behavior) ---
 const activeSection = ref<'parameters' | 'checklist' | 'activity'>('activity')
 
 // State for adding/editing
@@ -113,7 +113,7 @@ const applyMarkdown = (prefix: string, suffix: string = '') => {
   })
 }
 
-// --- AUTO-SAVE ---
+// --- AUTO-SAVE ON CLOSE ---
 watch(isCardDetailOpen, (newVal) => {
   if (!newVal && selectedCard.value && selectedCardColumnId.value) {
     store.updateCard(props.boardId, selectedCardColumnId.value, selectedCard.value.id, selectedCard.value)
@@ -276,15 +276,17 @@ const vFocus = {
 
 <template>
   <div v-if="board" class="h-full w-full relative overflow-hidden flex flex-col">
-    <div ref="viewportRef" class="flex-1 overflow-x-auto overflow-y-hidden cursor-grab select-none" @mousedown="onMouseDown">
-      <div class="flex items-start h-full p-10 min-w-full w-max gap-10">
-        <draggable v-model="board.columns" group="columns" item-key="id" handle=".column-handle" class="flex gap-10 h-full items-start" ghost-class="opacity-50">
+    <!-- Panning Viewport -->
+    <div ref="viewportRef" class="flex-1 overflow-x-auto overflow-y-hidden cursor-grab select-none p-6" @mousedown="onMouseDown">
+      <div class="flex items-start h-full min-w-full w-max gap-6">
+        <!-- Draggable Rails (Columns) -->
+        <draggable v-model="board.columns" group="columns" item-key="id" handle=".column-handle" class="flex gap-6 h-full items-start" ghost-class="opacity-50">
           <template #item="{ element: column }">
-            <div class="w-80 flex-shrink-0 flex flex-col bg-white/[0.05] border-x border-white/20 h-full relative group/rail shadow-2xl">
+            <div class="w-72 flex-shrink-0 flex flex-col bg-white/[0.05] border-x border-white/20 h-full relative group/rail shadow-2xl">
               <div class="absolute top-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
                 <div class="h-full bg-white transition-all duration-700 ease-out" :style="{ width: Math.min(100, (column.cards.length / 10) * 100) + '%' }"></div>
               </div>
-              <div class="p-6 flex items-start justify-between column-handle cursor-grab active:cursor-grabbing">
+              <div class="p-4 flex items-start justify-between column-handle cursor-grab active:cursor-grabbing">
                 <div class="space-y-1 flex-1 min-w-0">
                   <div class="flex items-center gap-2"><Database class="w-3 h-3 text-white/20" /><span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Sector_{{ column.id.slice(0,2).toUpperCase() }}</span></div>
                   <Input v-if="editingColumnId === column.id" v-model="editingColumnTitle" v-focus class="h-8 bg-white/5 border-white/20 text-sm font-black italic uppercase" @blur="saveColumnTitle(column.id)" @keyup.enter="saveColumnTitle(column.id)" @mousedown.stop />
@@ -298,10 +300,10 @@ const vFocus = {
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-              <ScrollArea class="flex-1 px-4 py-2">
-                <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-6 min-h-[200px] pb-10" ghost-class="opacity-10">
+              <ScrollArea class="flex-1 px-3 py-2">
+                <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-3 min-h-[200px] pb-10" ghost-class="opacity-10">
                   <template #item="{ element: card }">
-                    <div class="card-item group relative transition-all cursor-pointer overflow-hidden border-t border-white/20 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/40 active:scale-[0.98] pointer-events-auto p-5 space-y-4 shadow-lg" @click="openCardDetail(card, column.id)">
+                    <div class="card-item group relative transition-all cursor-pointer overflow-hidden border-t border-white/20 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/40 active:scale-[0.98] pointer-events-auto p-3 space-y-3 shadow-lg" @click="openCardDetail(card, column.id)">
                       <div v-if="getChecklistProgress(card)" class="absolute top-0 left-0 w-full h-[1px] bg-white/5 overflow-hidden">
                         <div class="h-full bg-white opacity-60" :style="{ width: (getChecklistProgress(card)!.completed / getChecklistProgress(card)!.total * 100) + '%' }"></div>
                       </div>
@@ -373,12 +375,11 @@ const vFocus = {
         <div v-if="selectedCard" class="flex-1 flex overflow-hidden">
           <div class="flex-1 flex flex-col border-r border-white/10">
             <ScrollArea class="flex-1">
-              <div class="space-y-4">
+              <div class="p-10 space-y-8">
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-3 text-[10px] font-black text-white/30 tracking-[0.5em]">
                     <Terminal class="w-4 h-4" /> // BRAIN_DUMP
                   </div>
-                  <!-- Markdown Toolbar (Visible when editing) -->
                   <div v-if="isEditingDescription" class="flex items-center gap-1 animate-in fade-in slide-in-from-right-2 duration-300">
                     <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('# ', '')"><Heading class="w-3.5 h-3.5" /></Button>
                     <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('**', '**')"><Bold class="w-3.5 h-3.5" /></Button>
@@ -387,25 +388,14 @@ const vFocus = {
                     <Button variant="ghost" size="icon" class="h-7 w-7 text-white/40 hover:text-white no-drag" @mousedown.prevent="applyMarkdown('`', '`')"><CodeIcon class="w-3.5 h-3.5" /></Button>
                   </div>
                 </div>
-
-                <div v-if="!isEditingDescription" 
-                  @click="startEditingDescription"
-                  class="w-full min-h-[400px] bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] text-white/80 hover:border-white/20 transition-all cursor-text prose prose-invert max-w-none prose-lg font-mono leading-relaxed shadow-inner"
-                  v-html="renderedDescription"
-                ></div>
-
-                <textarea v-else
-                  v-model="selectedCard.description" 
-                  @blur="isEditingDescription = false"
-                  placeholder="Inject system data..." 
-                  class="description-textarea w-full min-h-[400px] bg-white/[0.03] border border-white/20 p-8 rounded-[2rem] text-xl text-white outline-none transition-all resize-none font-mono leading-relaxed"
-                ></textarea>
-
+                <div v-if="!isEditingDescription" @click="startEditingDescription($event)" class="w-full min-h-[400px] bg-white/[0.02] border border-white/5 p-8 rounded-[2rem] text-white/80 hover:border-white/20 transition-all cursor-text prose prose-invert max-w-none prose-lg font-mono leading-relaxed shadow-inner" v-html="renderedDescription"></div>
+                <textarea v-else v-model="selectedCard.description" @blur="isEditingDescription = false" placeholder="Inject system data..." class="description-textarea w-full min-h-[400px] bg-white/[0.03] border border-white/20 p-8 rounded-[2rem] text-xl text-white outline-none transition-all resize-none font-mono leading-relaxed"></textarea>
               </div>
             </ScrollArea>
           </div>
 
           <div class="w-[450px] flex flex-col bg-white/[0.01]">
+            <!-- PARAMETERS SECTION -->
             <div class="border-b border-white/10 transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'parameters' ? 'flex-[1.5]' : 'h-16 shrink-0'">
               <button @click="activeSection = 'parameters'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group shrink-0">
                 <div class="flex items-center gap-4"><Cpu class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Parameters</span></div>
@@ -440,11 +430,7 @@ const vFocus = {
                   <div class="space-y-4">
                     <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Identifier_Tags</div>
                     <div class="flex flex-wrap gap-2">
-                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase flex items-center gap-2 bg-white/5" :style="{ color: tag.color }">
-                        {{ tag.text }}
-                        <X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="removeTag(tag.id)" />
-                      </div>
-
+                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-3 py-1 rounded-full border border-white/10 text-[9px] font-black uppercase flex items-center gap-2 bg-white/5" :style="{ color: tag.color }">{{ tag.text }}<X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="removeTag(tag.id)" /></div>
                       <DropdownMenu><DropdownMenuTrigger as-child><button class="h-6 px-4 rounded-full border border-dashed border-white/10 text-white/20 text-[9px] font-black hover:text-white transition-all">+</button></DropdownMenuTrigger><DropdownMenuContent class="bg-black/95 border-white/20 p-6 w-72 backdrop-blur-3xl rounded-2xl"><div class="space-y-6"><Input v-model="newTagText" v-focus placeholder="Tag Name..." class="bg-white/5 h-12 text-sm font-bold" @keyup.enter="addTag" /><div class="grid grid-cols-6 gap-3"><button v-for="c in tagColors" :key="c" class="w-full aspect-square rounded-full" :style="{ backgroundColor: c }" :class="selectedTagColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-black' : ''" @click="selectedTagColor = c"></button></div><Button class="w-full bg-white text-black font-black h-12 rounded-xl" @click="addTag">APPLY</Button></div></DropdownMenuContent></DropdownMenu>
                     </div>
                   </div>
@@ -462,7 +448,7 @@ const vFocus = {
                 <div v-if="activeSection !== 'checklist' && getChecklistProgress(selectedCard)" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ getChecklistProgress(selectedCard)?.completed }}/{{ getChecklistProgress(selectedCard)?.total }} Resolved</div>
                 <component :is="activeSection === 'checklist' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
               </button>
-              <ScrollArea v-if="activeSection === 'checklist'" class="flex-1 p-8"><div class="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500"><div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/check"><button @click="item.completed = !item.completed" class="w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'bg-white/5 hover:border-white/30'"><Check v-if="item.completed" class="w-4 h-4" /></button><input v-model="item.text" class="flex-1 bg-transparent border-none text-base outline-none transition-opacity" :class="item.completed ? 'text-white/10 line-through italic' : 'text-white/80'" /><button class="opacity-0 group-hover/check:opacity-100 p-1 text-white/20 hover:text-red-500 transition-all" @click="removeChecklistItem(item.id)"><Trash2 class="w-4 h-4" /></button></div><div class="flex gap-4 pt-4 border-t border-white/5 items-center"><Plus class="w-4 h-4 text-white/10" /><Input v-model="newChecklistItem" placeholder="Append sub-task..." class="bg-transparent border-none h-10 p-0 text-sm focus-visible:ring-0 placeholder:text-white/5" @keyup.enter="addChecklistItem" /></div></div></ScrollArea>
+              <ScrollArea v-if="activeSection === 'checklist'" class="flex-1 p-8"><div class="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500"><div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/check"><button @click="item.completed = !item.completed" class="w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'bg-white/5 hover:border-white/30'"><Check v-if="item.completed" class="w-4 h-4" /></button><input v-model="item.text" class="flex-1 bg-transparent border-none text-base outline-none transition-opacity" :class="item.completed ? 'text-white/20 line-through italic' : 'text-white/80'" /><button class="opacity-0 group-hover/check:opacity-100 p-1 text-white/20 hover:text-red-500 transition-all" @click="removeChecklistItem(item.id)"><Trash2 class="w-4 h-4" /></button></div><div class="flex gap-4 pt-4 border-t border-white/5 items-center"><Plus class="w-4 h-4 text-white/10" /><Input v-model="newChecklistItem" placeholder="Append sub-task..." class="bg-transparent border-none h-10 p-0 text-sm focus-visible:ring-0 placeholder:text-white/5" @keyup.enter="addChecklistItem" /></div></div></ScrollArea>
             </div>
 
             <div class="transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'activity' ? 'flex-[1.5]' : 'h-16 shrink-0'">
