@@ -7,7 +7,39 @@ export const useTodoStore = defineStore('todo', () => {
   const boards = ref<Board[]>([])
   const isInitialLoad = ref(true)
 
-  const isElectron = !!(window as any).ipcRenderer || (!!(window as any).require && !!(window as any).require('electron'))
+  const getIpcRenderer = () => {
+    const w = window as any
+    if (w.ipcRenderer) return w.ipcRenderer
+    if (w.require) {
+      try {
+        return w.require('electron').ipcRenderer
+      } catch {
+        return null
+      }
+    }
+    return null
+  }
+
+  const isElectron = !!getIpcRenderer()
+  const API_BASE_URL = 'http://localhost:3001/api'
+
+  const loadFromApi = async () => {
+    const response = await fetch(`${API_BASE_URL}/data`)
+    if (!response.ok) throw new Error(`API load failed with status ${response.status}`)
+    return response.json()
+  }
+
+  const saveToApi = async (data: { projects: Project[], boards: Board[] }) => {
+    const response = await fetch(`${API_BASE_URL}/save`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    })
+
+    if (!response.ok) throw new Error(`API save failed with status ${response.status}`)
+  }
 
   const loadData = async () => {
     isInitialLoad.value = true
@@ -15,7 +47,8 @@ export const useTodoStore = defineStore('todo', () => {
     
     if (isElectron) {
       try {
-        const data = await (window as any).ipcRenderer.invoke('get-data')
+        const ipcRenderer = getIpcRenderer()
+        const data = ipcRenderer ? await ipcRenderer.invoke('get-data') : null
         if (data) {
           projects.value = data.projects || []
           boards.value = data.boards || []
@@ -25,11 +58,19 @@ export const useTodoStore = defineStore('todo', () => {
         console.error('Failed to load from Electron:', e)
       }
     } else {
-      const data = localStorage.getItem('todo-pro-data')
-      if (data) {
-        const parsed = JSON.parse(data)
-        projects.value = parsed.projects || []
-        boards.value = parsed.boards || []
+      try {
+        const data = await loadFromApi()
+        projects.value = data.projects || []
+        boards.value = data.boards || []
+        console.log('Server DB synced successfully.')
+      } catch (e) {
+        console.warn('Failed to load from local API, using localStorage fallback:', e)
+        const data = localStorage.getItem('todo-pro-data')
+        if (data) {
+          const parsed = JSON.parse(data)
+          projects.value = parsed.projects || []
+          boards.value = parsed.boards || []
+        }
       }
     }
     
@@ -50,12 +91,20 @@ export const useTodoStore = defineStore('todo', () => {
 
     if (isElectron) {
       try {
-        await (window as any).ipcRenderer.invoke('save-data', JSON.parse(JSON.stringify(data)))
+        const ipcRenderer = getIpcRenderer()
+        if (ipcRenderer) {
+          await ipcRenderer.invoke('save-data', JSON.parse(JSON.stringify(data)))
+        }
       } catch (e) {
         console.error('Failed to save to Electron:', e)
       }
     } else {
-      localStorage.setItem('todo-pro-data', JSON.stringify(data))
+      try {
+        await saveToApi(data)
+      } catch (e) {
+        console.warn('Failed to save to local API, using localStorage fallback:', e)
+        localStorage.setItem('todo-pro-data', JSON.stringify(data))
+      }
     }
   }
 

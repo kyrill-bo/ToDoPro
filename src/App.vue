@@ -229,7 +229,9 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
       >
         <!-- Fixed icon container (Matches minimized width w-16 = 64px) -->
         <div class="w-16 h-full flex items-center justify-center shrink-0 z-10">
-          <img src="/logo.png" class="w-8 h-8 bg-white rounded-lg object-cover shadow-[0_0_15px_rgba(255,255,255,0.2)] group-hover/logo:scale-110 transition-all duration-500" alt="Logo" />
+          <div class="p-1 rounded-lg bg-white/95 shadow-[0_0_18px_rgba(255,255,255,0.25)] transition-all duration-500 group-hover/logo:scale-110">
+            <img src="/logo.png" class="w-6 h-6 object-contain" alt="Logo" />
+          </div>
         </div>
         
         <!-- Sliding Text -->
