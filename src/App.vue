@@ -208,18 +208,14 @@ const vFocus = { mounted: (el: HTMLElement) => { const input = el.tagName === 'I
       @mouseenter="isSidebarHovered = true"
       @mouseleave="isSidebarHovered = false; hoveredProjectId = null"
     >
-      <!-- Logo: Always Centered -->
+      <!-- Logo: Aligned with Header -->
       <div 
-        class="h-16 flex flex-col items-center justify-center cursor-pointer no-drag group/logo shrink-0"
+        class="h-16 border-b border-white/10 flex flex-col items-center justify-center cursor-pointer no-drag group/logo shrink-0"
         @click="currentView = 'projects'; selectedProjectId = null; selectedBoardId = null"
       >
         <div class="w-8 h-8 rounded-xl bg-white text-black flex items-center justify-center font-black text-xs shadow-[0_0_20px_rgba(255,255,255,0.2)] group-hover/logo:scale-110 transition-all duration-500">
           TD
         </div>
-        <div 
-          class="mt-1 text-[8px] font-black tracking-[0.4em] uppercase transition-all duration-500"
-          :class="isSidebarHovered ? 'opacity-40 translate-y-0' : 'opacity-0 translate-y-2'"
-        >ToDo<span class="text-white/40">Pro</span></div>
       </div>
 
       <!-- Navigation -->
