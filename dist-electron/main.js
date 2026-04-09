@@ -1,35 +1,55 @@
-import { app as e, ipcMain as r, BrowserWindow as a } from "electron";
-import o from "path";
-import { fileURLToPath as c } from "url";
-import t from "fs";
-const f = c(import.meta.url), u = o.dirname(f), m = e.getPath("userData"), n = o.join(m, "db.json");
-function s() {
-  t.existsSync(n) || t.writeFileSync(n, JSON.stringify({ projects: [], boards: [] }, null, 2));
+import { app, ipcMain, BrowserWindow } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+const __filename$1 = fileURLToPath(import.meta.url);
+const __dirname$1 = path.dirname(__filename$1);
+const userDataPath = app.getPath("userData");
+const DB_FILE = path.join(userDataPath, "db.json");
+function initDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    fs.writeFileSync(DB_FILE, JSON.stringify({ projects: [], boards: [] }, null, 2));
+  }
 }
-function l() {
-  const i = new a({
+function createWindow() {
+  const win = new BrowserWindow({
     width: 1280,
     height: 800,
     title: "ToDo Pro",
     webPreferences: {
-      nodeIntegration: !0,
-      contextIsolation: !1
+      nodeIntegration: true,
+      contextIsolation: false
     },
     backgroundColor: "#000000",
-    autoHideMenuBar: !0,
+    autoHideMenuBar: true,
     titleBarStyle: "hiddenInset"
     // Modern Mac look
   });
-  process.env.VITE_DEV_SERVER_URL ? i.loadURL(process.env.VITE_DEV_SERVER_URL) : i.loadFile(o.join(u, "../dist/index.html"));
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(__dirname$1, "../dist/index.html"));
+  }
 }
-r.handle("get-data", () => (s(), JSON.parse(t.readFileSync(n, "utf8"))));
-r.handle("save-data", (i, d) => (t.writeFileSync(n, JSON.stringify(d, null, 2)), { success: !0 }));
-e.whenReady().then(() => {
-  s(), l();
+ipcMain.handle("get-data", () => {
+  initDB();
+  return JSON.parse(fs.readFileSync(DB_FILE, "utf8"));
 });
-e.on("window-all-closed", () => {
-  process.platform !== "darwin" && e.quit();
+ipcMain.handle("save-data", (event, data) => {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+  return { success: true };
 });
-e.on("activate", () => {
-  a.getAllWindows().length === 0 && l();
+app.whenReady().then(() => {
+  initDB();
+  createWindow();
+});
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") {
+    app.quit();
+  }
+});
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
+  }
 });

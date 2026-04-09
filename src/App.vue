@@ -249,7 +249,7 @@ const vFocus = {
 
     <!-- Sidebar -->
     <aside 
-      class="fixed left-0 top-0 bottom-0 z-50 flex flex-col border-r border-white/5 bg-white/[0.02] backdrop-blur-3xl transition-all duration-500 ease-in-out group shadow-[20px_0_50px_rgba(0,0,0,0.5)]"
+      class="fixed left-0 top-0 bottom-0 z-50 flex flex-col border-r border-white/20 bg-white/[0.03] backdrop-blur-3xl transition-all duration-500 ease-in-out group shadow-[20px_0_50px_rgba(0,0,0,0.8)]"
       :class="[isSidebarHovered ? 'w-64' : 'w-16']"
       @mouseenter="isSidebarHovered = true"
       @mouseleave="isSidebarHovered = false; hoveredProjectId = null"
@@ -417,7 +417,7 @@ const vFocus = {
     <!-- Main Content -->
     <main class="flex-1 flex flex-col overflow-hidden transition-all duration-500 ease-in-out" :class="[isSidebarHovered ? 'pl-64' : 'pl-16']">
       <!-- Header -->
-      <header class="h-20 border-b border-white/5 flex items-end pb-4 justify-between px-8 bg-black relative">
+      <header class="h-20 border-b border-white/20 flex items-end pb-4 justify-between px-8 bg-black relative">
         <div class="absolute inset-0 drag-region pointer-events-none"></div>
         <div class="flex items-center gap-6 relative z-10 no-drag">
           <Button v-if="currentView !== 'projects'" variant="ghost" size="icon" class="hover:bg-white/5 rounded-full" @click="goBack"><ArrowLeft class="w-5 h-5" /></Button>
@@ -434,21 +434,101 @@ const vFocus = {
       <!-- View Container -->
       <div class="flex-1 relative overflow-hidden" :class="currentView !== 'board-detail' && 'overflow-auto p-8'">
         <!-- Projects View -->
-        <div v-if="currentView === 'projects'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card 
+        <div v-if="currentView === 'projects'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <div 
             v-for="project in store.projects" 
             :key="project.id"
-            class="project-card hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)] transition-all cursor-pointer bg-white/[0.03] border-white/5 backdrop-blur-md hover:bg-white/[0.06] hover:scale-[1.02] group border-t-0"
+            class="relative group cursor-pointer high-tech-hover"
             @click="navigateToProject(project.id)"
           >
-            <CardHeader class="pb-4">
-<div class="flex justify-between items-start mb-2"><div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-lg">{{ getFirstLetter(project.title) }}</div><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditProject(project)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteProject(project.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black tracking-tight uppercase italic text-white">{{ project.title }}</CardTitle><CardDescription v-if="project.description" class="text-white/30 text-xs mt-2 line-clamp-2 leading-relaxed">{{ project.description }}</CardDescription></CardHeader><CardContent><div class="text-[10px] font-black text-white/10 uppercase tracking-[0.2em] flex items-center gap-2">{{ store.getBoardsByProject(project.id).length }} Boards</div></CardContent></Card>
-          <button class="h-auto aspect-square border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 transition-all group no-drag" @click="isProjectDialogOpen = true"><div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 transition-transform"><Plus class="w-6 h-6" /></div><span class="text-white/20 text-xs font-black tracking-[0.2em] uppercase">Neu</span></button>
+            <!-- Background Layer -->
+            <div class="absolute inset-0 bg-white/[0.02] border border-white/10 rounded-[2rem] transition-all duration-500 group-hover:bg-white/[0.05] group-hover:border-white/30 group-hover:shadow-[0_0_40px_rgba(255,255,255,0.05)]"></div>
+            
+            <!-- Tech Grid Overlay -->
+            <div class="absolute inset-0 tech-grid opacity-20 rounded-[2rem]"></div>
+
+            <!-- Content -->
+            <div class="relative p-8 space-y-6">
+              <div class="flex justify-between items-start">
+                <!-- Project Core Icon -->
+                <div class="w-14 h-14 rounded-2xl bg-white text-black flex items-center justify-center font-black text-2xl shadow-[0_0_20px_rgba(255,255,255,0.2)] group-hover:scale-110 transition-transform duration-500 italic">
+                  {{ getFirstLetter(project.title) }}
+                </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child @click.stop>
+                    <Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <MoreVertical class="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2">
+                    <DropdownMenuItem @click="openEditProject(project)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md">
+                      <Settings class="w-4 h-4 mr-2 text-white/40" />
+                      Bearbeiten
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteProject(project.id)">
+                      <Trash2 class="w-4 h-4 mr-2" />
+                      Löschen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <div class="space-y-2">
+                <h3 class="text-2xl font-black tracking-tighter uppercase italic text-white group-hover:text-white transition-colors">
+                  {{ project.title }}
+                </h3>
+                <p v-if="project.description" class="text-white/30 text-xs line-clamp-2 leading-relaxed font-medium">
+                  {{ project.description }}
+                </p>
+              </div>
+
+              <!-- System Stats Footer -->
+              <div class="pt-6 border-t border-white/5 flex items-center justify-between">
+                <div class="flex flex-col">
+                  <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">System_Status</span>
+                  <span class="text-[10px] font-mono text-green-500/60 uppercase">Active_Link</span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Boards_Cnt</span>
+                  <div class="text-xl font-black italic text-white/10 group-hover:text-white/40 transition-colors">
+                    {{ store.getBoardsByProject(project.id).length.toString().padStart(2, '0') }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Corner Accents (Only on Hover) -->
+            <div class="bracket bracket-tl"></div>
+            <div class="bracket bracket-tr"></div>
+            <div class="bracket bracket-bl"></div>
+            <div class="bracket bracket-br"></div>
+          </div>
+          
+          <!-- Add Project "Ghost" Card -->
+          <button 
+            class="relative group h-auto aspect-square rounded-[2rem] border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 flex flex-col items-center justify-center gap-4 transition-all no-drag"
+            @click="isProjectDialogOpen = true"
+          >
+            <div class="w-16 h-16 rounded-full border border-white/5 flex items-center justify-center text-white/10 group-hover:scale-110 group-hover:text-white group-hover:border-white/20 transition-all duration-500">
+              <Plus class="w-8 h-8" />
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-white/10 text-[10px] font-black tracking-[0.3em] uppercase group-hover:text-white/30">Initialize</span>
+              <span class="text-white/20 text-xs font-black tracking-[0.1em] uppercase">New_Project</span>
+            </div>
+          </button>
         </div>
 
         <!-- Project Detail View (Boards List) -->
         <div v-else-if="currentView === 'project-detail'" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-          <Card v-for="board in projectBoards" :key="board.id" class="hover:shadow-[0_20px_50px_rgba(255,255,255,0.05)] transition-all cursor-pointer aspect-video flex flex-col justify-center items-center relative group bg-white/[0.03] border-white/5 backdrop-blur-md hover:bg-white/[0.06] hover:scale-[1.02]" @click="navigateToBoard(board.id)"><div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/40"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditBoard(board)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteBoard(board.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black italic uppercase tracking-tighter text-white/80">{{ board.title }}</CardTitle></Card>
+          <Card 
+            v-for="board in projectBoards" 
+            :key="board.id"
+            class="hover:shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all cursor-pointer aspect-video flex flex-col justify-center items-center relative group bg-white/[0.05] border border-white/20 backdrop-blur-md hover:bg-white/[0.08] hover:border-white/40 hover:scale-[1.02]"
+            @click="navigateToBoard(board.id)"
+          >
+<div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity"><DropdownMenu><DropdownMenuTrigger as-child @click.stop><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/40"><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2"><DropdownMenuItem @click="openEditBoard(board)" class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md"><Settings class="w-4 h-4 mr-2 text-white/40" />Bearbeiten</DropdownMenuItem><DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md" @click="store.deleteBoard(board.id)"><Trash2 class="w-4 h-4 mr-2" />Löschen</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><CardTitle class="text-xl font-black italic uppercase tracking-tighter text-white/80">{{ board.title }}</CardTitle></Card>
           <button class="aspect-video border-2 border-dashed border-white/5 bg-transparent hover:bg-white/[0.02] hover:border-white/10 rounded-2xl flex flex-col items-center justify-center gap-4 transition-all group no-drag" @click="isBoardDialogOpen = true"><div class="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/20 group-hover:scale-110 transition-transform"><Plus class="w-5 h-5" /></div><span class="text-white/20 text-xs font-black tracking-[0.2em] uppercase">Board</span></button>
         </div>
 

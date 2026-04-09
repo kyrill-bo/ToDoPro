@@ -28,12 +28,47 @@
     --destructive: 0 100% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 15%; /* White/15% approx */
-    --input: 0 0% 15%;
+    --border: 0 0% 35%; /* Much brighter default borders */
+    --input: 0 0% 30%;
     --ring: 0 0% 100%;
 
     --radius: 0.75rem;
   }
+}
+
+/* Enhanced Cyber Borders */
+.cyber-border {
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.cyber-border-active {
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
+}
+
+/* Tech-Grid Background */
+.tech-grid {
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Glitch Effect for text */
+.tech-glitch:hover {
+  text-shadow: 2px 0 #ff00c1, -2px 0 #00fff9;
+}
+
+/* Status Pulse Animation */
+@keyframes status-pulse {
+  0% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.2); opacity: 0.2; }
+  100% { transform: scale(1); opacity: 0.5; }
+}
+
+.animate-status-pulse {
+  animation: status-pulse var(--pulse-speed, 3s) ease-in-out infinite;
 }
 
 @layer base {
