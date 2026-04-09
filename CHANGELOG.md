@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.1](https://github.com/kyrill-bo/ToDoPro/compare/v1.3.0...v1.3.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* update logo image path in index.html and enhance logo styling in App.vue; improve API handling in todo store ([7ff71b8](https://github.com/kyrill-bo/ToDoPro/commit/7ff71b8c774d07dfa9f36adcdc82c9999e8cbb4b))
+
 ## [1.3.0](https://github.com/kyrill-bo/ToDoPro/compare/v1.2.1...v1.3.0) (2026-04-09)
 
 
