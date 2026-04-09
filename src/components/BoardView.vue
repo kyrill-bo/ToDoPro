@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTodoStore } from '@/stores/todo'
 import draggable from 'vuedraggable'
 import { 
@@ -21,7 +21,10 @@ import {
   Cpu,
   Activity,
   ChevronRight,
-  Database
+  Database,
+  ChevronDown,
+  ChevronUp,
+  Info
 } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardContent } from '@/components/ui/card'
@@ -47,7 +50,10 @@ const props = defineProps<{
 const store = useTodoStore()
 const board = computed(() => store.getBoardById(props.boardId))
 
-// State
+// UI States
+const expandedSection = ref<'checklist' | 'parameters' | 'activity'>('parameters')
+
+// State for adding/editing
 const newColumnTitle = ref('')
 const isAddingColumn = ref(false)
 const newCardTitle = ref<Record<string, string>>({})
@@ -184,275 +190,212 @@ const vFocus = {
     input?.focus()
   }
 }
+
+const toggleSection = (section: 'checklist' | 'parameters' | 'activity') => {
+  expandedSection.value = expandedSection.value === section ? section : section
+}
 </script>
 
 <template>
   <div v-if="board" class="h-full w-full relative overflow-hidden flex flex-col">
-    <!-- Panning Viewport -->
-    <div 
-      ref="viewportRef"
-      class="flex-1 overflow-x-auto overflow-y-hidden cursor-grab select-none"
-      @mousedown="onMouseDown"
-    >
-      <div class="flex items-start h-full p-10 min-w-full w-max gap-10">
-        <!-- Draggable Rails (Columns) -->
-        <draggable
-          v-model="board.columns"
-          group="columns"
-          item-key="id"
-          handle=".column-handle"
-          class="flex gap-10 h-full items-start"
-          ghost-class="opacity-50"
-        >
+    <div ref="viewportRef" class="flex-1 overflow-x-auto overflow-y-hidden cursor-grab select-none" @mousedown="onMouseDown">
+      <div class="flex items-start h-full p-8 min-w-full w-max gap-10">
+        <draggable v-model="board.columns" group="columns" item-key="id" handle=".column-handle" class="flex gap-10 h-full items-start" ghost-class="opacity-50">
           <template #item="{ element: column }">
-            <div class="w-80 flex-shrink-0 flex flex-col bg-white/[0.02] border-x border-white/10 h-full relative group/rail">
-              <!-- Top Tech Header -->
+            <div class="w-80 flex-shrink-0 flex flex-col bg-white/[0.05] border-x border-white/20 h-full relative group/rail">
               <div class="absolute top-0 left-0 w-full h-1 bg-white/5 overflow-hidden">
-                <div 
-                  class="h-full bg-white transition-all duration-700 ease-out"
-                  :style="{ width: Math.min(100, (column.cards.length / 10) * 100) + '%' }"
-                ></div>
+                <div class="h-full bg-white transition-all duration-700 ease-out" :style="{ width: Math.min(100, (column.cards.length / 10) * 100) + '%' }"></div>
               </div>
-
-              <!-- Header -->
               <div class="p-6 flex items-start justify-between column-handle cursor-grab active:cursor-grabbing">
                 <div class="space-y-1 flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <Database class="w-3 h-3 text-white/20" />
-                    <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Sector_{{ column.id.slice(0,2).toUpperCase() }}</span>
-                  </div>
-                  
-                  <Input 
-                    v-if="editingColumnId === column.id" 
-                    v-model="editingColumnTitle" 
-                    v-focus 
-                    class="h-8 bg-white/5 border-white/20 text-sm font-black italic uppercase"
-                    @blur="saveColumnTitle(column.id)"
-                    @keyup.enter="saveColumnTitle(column.id)"
-                    @mousedown.stop 
-                  />
-                  <h3 
-                    v-else 
-                    class="text-xl font-black italic uppercase tracking-tighter truncate cursor-pointer hover:text-white transition-colors"
-                    @mousedown.stop 
-                    @click="editingColumnId = column.id; editingColumnTitle = column.title"
-                  >
-                    {{ column.title }}
-                  </h3>
+                  <div class="flex items-center gap-2"><Database class="w-3 h-3 text-white/20" /><span class="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Sector_{{ column.id.slice(0,2).toUpperCase() }}</span></div>
+                  <Input v-if="editingColumnId === column.id" v-model="editingColumnTitle" v-focus class="h-8 bg-white/5 border-white/20 text-sm font-black italic uppercase" @blur="saveColumnTitle(column.id)" @keyup.enter="saveColumnTitle(column.id)" @mousedown.stop />
+                  <h3 v-else class="text-xl font-black italic uppercase tracking-tighter truncate cursor-pointer hover:text-white transition-colors" @mousedown.stop @click="editingColumnId = column.id; editingColumnTitle = column.title">{{ column.title }}</h3>
                 </div>
-
                 <DropdownMenu>
-                  <DropdownMenuTrigger as-child class="dropdown-trigger">
-                    <Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/20 no-drag" @mousedown.stop>
-                      <MoreVertical class="w-4 h-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
+                  <DropdownMenuTrigger as-child class="dropdown-trigger"><Button variant="ghost" size="icon" class="h-8 w-8 hover:bg-white/10 text-white/20 no-drag" @mousedown.stop><MoreVertical class="w-4 h-4" /></Button></DropdownMenuTrigger>
                   <DropdownMenuContent align="end" class="bg-black/95 backdrop-blur-xl border-white/10 text-white p-2">
-                    <DropdownMenuItem class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="editingColumnId = column.id; editingColumnTitle = column.title">
-                      <Type class="w-4 h-4 mr-2" /> Umbenennen
-                    </DropdownMenuItem>
-                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="store.deleteColumn(boardId, column.id)">
-                      <Trash2 class="w-4 h-4 mr-2" /> Löschen
-                    </DropdownMenuItem>
+                    <DropdownMenuItem class="hover:bg-white/10 focus:bg-white/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="editingColumnId = column.id; editingColumnTitle = column.title"><Type class="w-4 h-4 mr-2" /> Umbenennen</DropdownMenuItem>
+                    <DropdownMenuItem class="text-red-500 hover:bg-red-500/10 focus:bg-red-500/10 cursor-pointer rounded-md no-drag font-bold text-[10px] uppercase tracking-widest" @click="store.deleteColumn(boardId, column.id)"><Trash2 class="w-4 h-4 mr-2" /> Löschen</DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              <!-- Processing Feed (Cards List) -->
               <ScrollArea class="flex-1 px-4 py-2">
-                <draggable
-                  v-model="column.cards"
-                  group="cards"
-                  item-key="id"
-                  class="space-y-6 min-h-[200px] pb-10"
-                  ghost-class="opacity-10"
-                >
+                <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-6 min-h-[200px] pb-10" ghost-class="opacity-10">
                   <template #item="{ element: card }">
-                    <div 
-                      class="card-item group relative transition-all cursor-pointer overflow-hidden border-t border-white/10 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/30 active:scale-[0.98] pointer-events-auto p-5 space-y-4"
-                      @click="openCardDetail(card, column.id)"
-                    >
-                      <!-- Progress Bar on top of card -->
+                    <div class="card-item group relative transition-all cursor-pointer overflow-hidden border-t border-white/20 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/40 active:scale-[0.98] pointer-events-auto p-5 space-y-4 shadow-lg" @click="openCardDetail(card, column.id)">
                       <div v-if="getChecklistProgress(card)" class="absolute top-0 left-0 w-full h-[1px] bg-white/5 overflow-hidden">
-                        <div class="h-full bg-white opacity-40" :style="{ width: (getChecklistProgress(card)!.completed / getChecklistProgress(card)!.total * 100) + '%' }"></div>
+                        <div class="h-full bg-white opacity-60" :style="{ width: (getChecklistProgress(card)!.completed / getChecklistProgress(card)!.total * 100) + '%' }"></div>
                       </div>
-
                       <div class="flex flex-wrap gap-1.5">
-                        <div v-for="tag in card.tags" :key="tag.id" class="px-2 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-tighter border" :style="{ borderColor: tag.color + '40', color: tag.color, backgroundColor: tag.color + '10' }">
-                          {{ tag.text }}
-                        </div>
+                        <div v-for="tag in card.tags" :key="tag.id" class="px-2 py-0.5 rounded-[2px] text-[7px] font-black uppercase tracking-tighter border" :style="{ borderColor: tag.color + '40', color: tag.color, backgroundColor: tag.color + '10' }">{{ tag.text }}</div>
                       </div>
-
                       <p class="text-sm font-black italic uppercase leading-tight text-white/70 group-hover:text-white transition-colors tracking-tight">{{ card.title }}</p>
-                      
-                      <div class="flex items-center justify-between text-[9px] font-black text-white/10 uppercase tracking-widest pt-2">
+                      <div class="flex items-center justify-between text-[9px] font-black text-white/20 uppercase tracking-widest pt-2">
                         <div class="flex items-center gap-3">
                           <div v-if="card.dueDate" class="flex items-center gap-1"><Calendar class="w-2.5 h-2.5" />{{ card.dueDate }}</div>
                           <div v-if="card.comments?.length" class="flex items-center gap-1"><MessageSquare class="w-2.5 h-2.5" />{{ card.comments.length }}</div>
                         </div>
-                        <div v-if="getChecklistProgress(card)" class="text-white/30">
-                          {{ getChecklistProgress(card)?.completed }}/{{ getChecklistProgress(card)?.total }}
-                        </div>
+                        <div v-if="getChecklistProgress(card)" class="text-white/40">{{ getChecklistProgress(card)?.completed }}/{{ getChecklistProgress(card)?.total }}</div>
                       </div>
-
-                      <!-- Side accent -->
-                      <div 
-                        class="absolute left-0 top-0 w-[2px] h-full"
-                        :style="{ backgroundColor: card.color !== 'transparent' ? card.color : 'transparent' }"
-                      ></div>
+                      <div class="absolute left-0 top-0 w-[2px] h-full" :style="{ backgroundColor: card.color !== 'transparent' ? card.color : 'transparent' }"></div>
                     </div>
                   </template>
                 </draggable>
               </ScrollArea>
-
-              <!-- Footer Input -->
-              <div class="p-4 border-t border-white/5 bg-black/20">
-                <div v-if="isAddingCard[column.id]" class="space-y-3 p-2 bg-white/[0.02] rounded-xl border border-white/10 animate-in fade-in slide-in-from-bottom-2">
+              <div class="p-4 border-t border-white/10 bg-black/20">
+                <div v-if="isAddingCard[column.id]" class="space-y-3 p-2 bg-white/[0.02] rounded-xl border border-white/20 animate-in fade-in slide-in-from-bottom-2">
                   <Input v-model="newCardTitle[column.id]" v-focus placeholder="Initialize data..." class="bg-transparent border-none text-sm h-8 focus-visible:ring-0 font-mono" @keyup.enter="handleAddCard(column.id)" @mousedown.stop />
                   <div class="flex gap-2">
                     <Button size="sm" class="bg-white text-black font-black text-[10px] flex-1" @click="handleAddCard(column.id)">APPEND</Button>
                     <Button size="sm" variant="ghost" class="text-white/20 text-[10px]" @click="isAddingCard[column.id] = false">X</Button>
                   </div>
                 </div>
-                <button 
-                  v-else 
-                  class="w-full h-10 flex items-center justify-center gap-3 text-white/10 hover:text-white/40 hover:bg-white/[0.02] transition-all no-drag border border-dashed border-white/5 rounded-xl group/add"
-                  @click="isAddingCard[column.id] = true"
-                >
-                  <Plus class="w-4 h-4 group-hover/add:rotate-90 transition-transform" />
-                  <span class="text-[9px] font-black uppercase tracking-[0.3em]">Add_Entry</span>
-                </button>
+                <button v-else class="w-full h-10 flex items-center justify-center gap-3 text-white/10 hover:text-white/40 hover:bg-white/[0.02] transition-all no-drag border border-dashed border-white/10 rounded-xl group/add" @click="isAddingCard[column.id] = true"><Plus class="w-4 h-4 group-hover/add:rotate-90 transition-transform" /><span class="text-[9px] font-black uppercase tracking-[0.3em]">Add_Entry</span></button>
               </div>
             </div>
           </template>
         </draggable>
 
-        <!-- Add Column (Ghost Rail) -->
         <div class="w-80 flex-shrink-0 h-full">
           <div v-if="isAddingColumn" class="bg-white/[0.03] border border-white/20 backdrop-blur-xl p-8 rounded-2xl space-y-6 animate-in zoom-in-95" @mousedown.stop>
-            <div class="space-y-2">
-              <span class="text-[8px] font-black text-white/20 uppercase tracking-widest">New_Sector_Link</span>
-              <Input v-model="newColumnTitle" v-focus placeholder="Enter Sector Name..." class="bg-white/5 border-white/10 h-12 text-xl font-black italic uppercase" @keyup.enter="handleAddColumn" />
-            </div>
-            <div class="flex gap-3">
-              <Button class="bg-white text-black hover:bg-white/90 font-black flex-1 h-12 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]" @click="handleAddColumn">INITIALIZE</Button>
-              <Button variant="ghost" class="text-white/20 text-[10px] font-bold" @click="isAddingColumn = false">VOID</Button>
-            </div>
+            <div class="space-y-2"><span class="text-[8px] font-black text-white/20 uppercase tracking-widest">New_Sector_Link</span><Input v-model="newColumnTitle" v-focus placeholder="Enter Sector Name..." class="bg-white/5 border-white/20 h-12 text-xl font-black italic uppercase" @keyup.enter="handleAddColumn" /></div>
+            <div class="flex gap-3"><Button class="bg-white text-black hover:bg-white/90 font-black flex-1 h-12 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)]" @click="handleAddColumn">INITIALIZE</Button><Button variant="ghost" class="text-white/20 text-[10px] font-bold" @click="isAddingColumn = false">VOID</Button></div>
           </div>
-          
-          <button 
-            v-else 
-            class="w-full h-full border-x border-dashed border-white/10 bg-white/[0.01] hover:bg-white/[0.03] transition-all no-drag flex flex-col items-center justify-center gap-6 group/ghost"
-            @click="isAddingColumn = true"
-          >
-            <!-- Ghost Icon with rotating effect on hover -->
-            <div class="relative w-16 h-16 flex items-center justify-center">
-              <div class="absolute inset-0 rounded-full border border-dashed border-white/10 group-hover/ghost:rotate-90 transition-transform duration-1000"></div>
-              <Plus class="w-6 h-6 text-white/5 group-hover/ghost:text-white/40 transition-colors" />
-            </div>
-            
-            <div class="flex flex-col items-center gap-1">
-              <span class="text-[9px] font-black uppercase tracking-[0.4em] text-white/5 group-hover/ghost:text-white/20 transition-all">Ready_to_Link</span>
-              <span class="text-[11px] font-black uppercase italic tracking-tighter text-white/5 group-hover/ghost:text-white/10 transition-all">Append_New_Rail</span>
-            </div>
-          </button>
+          <button v-else class="w-full h-full border-x border-dashed border-white/10 bg-white/[0.01] hover:bg-white/[0.03] transition-all no-drag flex flex-col items-center justify-center gap-6 group/ghost" @click="isAddingColumn = true"><div class="relative w-16 h-16 flex items-center justify-center"><div class="absolute inset-0 rounded-full border border-dashed border-white/10 group-hover/ghost:rotate-90 transition-transform duration-1000"></div><Plus class="w-6 h-6 text-white/5 group-hover/ghost:text-white/40 transition-colors" /></div><div class="flex flex-col items-center gap-1"><span class="text-[9px] font-black uppercase tracking-[0.4em] text-white/5 group-hover/ghost:text-white/20 transition-all">Ready_to_Link</span><span class="text-[11px] font-black uppercase italic tracking-tighter text-white/5 group-hover/ghost:text-white/10 transition-all">Append_New_Rail</span></div></button>
         </div>
       </div>
     </div>
 
-    <!-- RADICAL "CYBER-BLADE" CARD DETAIL -->
+    <!-- CLEAN COMMAND CONSOLE CARD DETAIL -->
     <Dialog v-model:open="isCardDetailOpen">
-      <DialogContent hide-close class="max-w-none w-[95vw] h-[90vh] bg-transparent border-none text-white p-0 overflow-hidden z-[1000] flex items-center justify-center shadow-none outline-none">
+      <DialogContent hide-close class="max-w-5xl h-[80vh] bg-[#080808] border border-white/20 text-white p-0 overflow-hidden z-[1000] flex flex-col rounded-3xl shadow-[0_0_100px_rgba(0,0,0,1)]">
         <VisuallyHidden>
           <DialogTitle>{{ selectedCard?.title }}</DialogTitle>
-          <DialogDescription>Advanced Cyber HUD Interface</DialogDescription>
+          <DialogDescription>Central Command Console</DialogDescription>
         </VisuallyHidden>
 
-        <div v-if="selectedCard" class="flex w-full h-full max-w-7xl gap-4 p-4 animate-in fade-in zoom-in-95 duration-500">
-          <!-- Blade 1: Main (Details) -->
-          <div class="flex-[1.5] bg-black/80 backdrop-blur-3xl border border-white/20 rounded-[2rem] flex flex-col overflow-hidden shadow-2xl relative">
-            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10 pointer-events-none"></div>
-            <div class="p-8 border-b border-white/10 bg-white/[0.02] flex items-start justify-between">
-              <div class="space-y-2">
-                <div class="flex items-center gap-3">
-                  <div class="px-2 py-0.5 rounded bg-white text-black font-mono text-[10px] font-black tracking-tighter uppercase">Entry_Point</div>
-                  <div class="text-[10px] font-mono text-white/20 tracking-[0.3em] uppercase italic">Diagnostic active</div>
-                </div>
-                <Input v-model="selectedCard.title" v-focus class="text-4xl font-black italic uppercase bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white tracking-tighter w-full" />
-              </div>
-              <Button variant="ghost" size="icon" class="rounded-full hover:bg-white/10 text-white/20 no-drag" @click="isCardDetailOpen = false">
-                <X class="w-6 h-6" />
-              </Button>
+        <div v-if="selectedCard" class="flex flex-col h-full">
+          <!-- Top Global Bar -->
+          <div class="h-16 border-b border-white/10 bg-white/[0.02] flex items-center px-8 justify-between">
+            <div class="flex items-center gap-4">
+              <div class="w-8 h-8 rounded-lg bg-white text-black flex items-center justify-center font-black text-[10px]">CC</div>
+              <div class="text-[10px] font-black text-white/40 uppercase tracking-[0.3em]">Command_Console // v1.0</div>
             </div>
-            <ScrollArea class="flex-1 p-8">
-              <div class="space-y-12">
+            <button class="p-2 rounded-full hover:bg-white/5 text-white/20 hover:text-white transition-all no-drag" @click="isCardDetailOpen = false"><X class="w-5 h-5" /></button>
+          </div>
+
+          <div class="flex-1 flex overflow-hidden">
+            <!-- LEFT: CORE CONSOLE (Description & Title) -->
+            <div class="flex-1 flex flex-col border-r border-white/10">
+              <div class="p-10 space-y-10">
+                <div class="space-y-2">
+                  <span class="text-[10px] font-black text-white/20 uppercase tracking-widest">Entry_Identifier</span>
+                  <Input v-model="selectedCard.title" v-focus class="text-4xl font-black italic uppercase bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white tracking-tighter w-full" />
+                </div>
+
                 <div class="space-y-4">
-                  <div class="flex items-center gap-2 text-[10px] font-black text-white/20 tracking-[0.4em]"><Terminal class="w-3 h-3" /> // DESCRIPTION_LOG</div>
-                  <textarea v-model="selectedCard.description" placeholder="..." class="w-full min-h-[200px] bg-white/[0.02] border border-white/10 p-6 rounded-3xl text-lg text-white/80 focus:ring-1 focus:ring-white/20 outline-none transition-all resize-none font-mono"></textarea>
+                  <div class="flex items-center gap-2 text-[10px] font-black text-white/20 tracking-[0.4em]"><Terminal class="w-3 h-3" /> // DATA_CONTENT</div>
+                  <textarea v-model="selectedCard.description" placeholder="Input data..." class="w-full min-h-[300px] bg-white/[0.02] border border-white/5 p-6 rounded-2xl text-lg text-white/80 focus:border-white/20 outline-none transition-all resize-none font-mono"></textarea>
                 </div>
-                <div class="space-y-6 bg-white/[0.01] border border-white/10 p-8 rounded-3xl relative overflow-hidden">
-                  <div class="absolute top-0 left-0 w-1 h-full bg-white/20"></div>
-                  <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2 text-[10px] font-black text-white/20 tracking-[0.4em]"><CheckSquare class="w-3 h-3" /> // SUB_TASKS</div>
-                    <div class="font-mono text-[10px] text-white/40 bg-white/5 px-3 py-1 rounded-full italic">COMPLETE: {{ Math.round((getChecklistProgress(selectedCard)?.completed || 0) / (getChecklistProgress(selectedCard)?.total || 1) * 100) }}%</div>
+              </div>
+            </div>
+
+            <!-- RIGHT: SERVICE MODULES (Collapsible) -->
+            <div class="w-[400px] flex flex-col bg-white/[0.01]">
+              <!-- Module: Parameters (Tags, Color, Date) -->
+              <div class="border-b border-white/10 transition-all" :class="expandedSection === 'parameters' ? 'flex-1' : 'h-14'">
+                <button @click="toggleSection('parameters')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                  <div class="flex items-center gap-3">
+                    <Cpu class="w-4 h-4 text-white/40" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Parameters</span>
                   </div>
-                  <div class="space-y-3">
-                    <div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/blade-item">
-                      <button class="w-6 h-6 rounded border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black' : 'bg-white/5 hover:border-white/30'" @click="item.completed = !item.completed"><Check v-if="item.completed" class="w-4 h-4" /></button>
-                      <input v-model="item.text" class="flex-1 bg-transparent border-none text-base outline-none transition-all font-medium" :class="item.completed ? 'text-white/20 line-through' : 'text-white/80'" />
-                      <button class="opacity-0 group-hover/blade-item:opacity-100 text-white/20 hover:text-red-500 transition-all" @click="removeChecklistItem(item.id)"><Trash2 class="w-4 h-4" /></button>
+                  <div v-if="expandedSection !== 'parameters'" class="text-[9px] font-bold text-white/20 uppercase italic">
+                    {{ selectedCard.tags.length }} Tags // {{ selectedCard.color !== 'transparent' ? 'Colored' : 'Default' }}
+                  </div>
+                  <component :is="expandedSection === 'parameters' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
+                </button>
+                <div v-if="expandedSection === 'parameters'" class="p-8 space-y-8 animate-in fade-in duration-300">
+                  <div class="space-y-4">
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Identifiers</div>
+                    <div class="flex flex-wrap gap-2">
+                      <div v-for="tag in selectedCard.tags" :key="tag.id" class="px-2 py-1 rounded border border-white/10 text-[9px] font-black uppercase" :style="{ color: tag.color }">{{ tag.text }}</div>
+                      <button @click="newTagText = ''; addTag()" class="h-6 px-3 rounded border border-dashed border-white/10 text-white/20 text-[9px] hover:text-white">+</button>
                     </div>
-                    <div class="flex gap-4 pt-4 border-t border-white/10"><div class="w-6 h-6 flex items-center justify-center"><Plus class="w-4 h-4 text-white/20" /></div><Input v-model="newChecklistItem" placeholder="APPEND_ITEM..." class="bg-transparent border-none h-6 p-0 text-sm focus-visible:ring-0 placeholder:text-white/10" @keyup.enter="addChecklistItem" /></div>
+                  </div>
+                  <div class="space-y-4">
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Spectrum</div>
+                    <div class="flex gap-2">
+                      <button v-for="color in colors" :key="color.value" @click="selectedCard.color = color.value" class="w-6 h-6 rounded-md border border-white/10" :style="{ backgroundColor: color.value === 'transparent' ? '#111' : color.value }" :class="selectedCard.color === color.value ? 'ring-1 ring-white ring-offset-2 ring-offset-black' : ''"></button>
+                    </div>
+                  </div>
+                  <div class="space-y-4">
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Timeline</div>
+                    <Input type="date" v-model="selectedCard.dueDate" class="h-10 bg-white/5 border-white/10 text-white font-mono text-[10px]" />
                   </div>
                 </div>
               </div>
-            </ScrollArea>
+
+              <!-- Module: Checklist -->
+              <div class="border-b border-white/10 transition-all" :class="expandedSection === 'checklist' ? 'flex-1' : 'h-14'">
+                <button @click="toggleSection('checklist')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                  <div class="flex items-center gap-3">
+                    <CheckSquare class="w-4 h-4 text-white/40" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Checklist</span>
+                  </div>
+                  <div v-if="expandedSection !== 'checklist' && getChecklistProgress(selectedCard)" class="text-[9px] font-bold text-white/20 uppercase italic">
+                    {{ getChecklistProgress(selectedCard)?.completed }}/{{ getChecklistProgress(selectedCard)?.total }} Sync
+                  </div>
+                  <component :is="expandedSection === 'checklist' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
+                </button>
+                <ScrollArea v-if="expandedSection === 'checklist'" class="h-[calc(100%-3.5rem)] p-8">
+                  <div class="space-y-4">
+                    <div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/item">
+                      <button @click="item.completed = !item.completed" class="w-5 h-5 rounded border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black' : 'bg-white/5'"><Check v-if="item.completed" class="w-3 h-3" /></button>
+                      <input v-model="item.text" class="flex-1 bg-transparent border-none text-sm outline-none" :class="item.completed ? 'text-white/20 line-through' : 'text-white/80'" />
+                    </div>
+                    <Input v-model="newChecklistItem" placeholder="Append sub-process..." class="bg-white/5 border-white/10 h-10 text-xs" @keyup.enter="addChecklistItem" />
+                  </div>
+                </ScrollArea>
+              </div>
+
+              <!-- Module: Activity -->
+              <div class="transition-all" :class="expandedSection === 'activity' ? 'flex-1' : 'h-14'">
+                <button @click="toggleSection('activity')" class="w-full h-14 px-6 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
+                  <div class="flex items-center gap-3">
+                    <Activity class="w-4 h-4 text-white/40" />
+                    <span class="text-[10px] font-black uppercase tracking-[0.2em]">Neural Feed</span>
+                  </div>
+                  <div v-if="expandedSection !== 'activity'" class="text-[9px] font-bold text-white/20 uppercase italic">
+                    {{ selectedCard.comments.length }} Entries
+                  </div>
+                  <component :is="expandedSection === 'activity' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/20" />
+                </button>
+                <div v-if="expandedSection === 'activity'" class="h-[calc(100%-3.5rem)] flex flex-col">
+                  <ScrollArea class="flex-1 p-6">
+                    <div class="space-y-6">
+                      <div v-for="comment in [...selectedCard.comments].reverse()" :key="comment.id" class="p-4 rounded-xl bg-white/[0.02] border border-white/5 space-y-2">
+                        <div class="flex items-center justify-between text-[8px] font-mono text-white/20"><span>UID: {{ comment.id.slice(0,4) }}</span><span>{{ formatDate(comment.createdAt) }}</span></div>
+                        <p class="text-xs text-white/60 font-mono">{{ comment.text }}</p>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                  <div class="p-6 border-t border-white/10 bg-white/[0.01]">
+                    <Input v-model="commentText" placeholder="Inject log..." class="bg-white/5 border-white/10 h-10 text-xs font-mono" @keyup.enter="handleAddComment" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <!-- Blade 2: Settings -->
-          <div class="w-80 bg-white/[0.03] backdrop-blur-2xl border border-white/20 rounded-[2rem] flex flex-col overflow-hidden shadow-xl">
-            <div class="p-8 border-b border-white/10 bg-white/[0.02]"><div class="flex items-center gap-2 text-[10px] font-black text-white/20 tracking-[0.4em]"><Cpu class="w-3 h-3" /> MODULES</div></div>
-            <div class="flex-1 p-8 space-y-10">
-              <div class="space-y-4">
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest flex items-center gap-2"><TagIcon class="w-3 h-3" /> IDENTIFIERS</div>
-                <div class="flex flex-wrap gap-2">
-                  <div v-for="tag in selectedCard.tags" :key="tag.id" class="flex items-center gap-2 px-3 py-1 rounded-md text-[9px] font-black border" :style="{ borderColor: tag.color + '40', color: tag.color, backgroundColor: tag.color + '10' }">{{ tag.text }}<X class="w-2.5 h-2.5 cursor-pointer hover:text-white" @click="selectedCard.tags = selectedCard.tags.filter(t => t.id !== tag.id)" /></div>
-                  <DropdownMenu><DropdownMenuTrigger as-child><button class="h-8 px-4 rounded-full border border-dashed border-white/10 text-white/20 text-[10px] font-black hover:border-white/30 hover:text-white transition-all">+</button></DropdownMenuTrigger><DropdownMenuContent class="bg-black/95 border-white/10 p-4 w-64 backdrop-blur-3xl"><div class="space-y-4"><Input v-model="newTagText" placeholder="NAME..." class="bg-white/5 h-10 text-xs" @keyup.enter="addTag" /><div class="grid grid-cols-6 gap-2"><button v-for="c in tagColors" :key="c" class="w-full aspect-square rounded-lg" :style="{ backgroundColor: c }" :class="selectedTagColor === c ? 'ring-2 ring-white' : ''" @click="selectedTagColor = c"></button></div><Button class="w-full bg-white text-black font-black" @click="addTag">APPLY</Button></div></DropdownMenuContent></DropdownMenu>
-                </div>
-              </div>
-              <div class="space-y-4">
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest">SIGNAL_COLOR</div>
-                <div class="grid grid-cols-3 gap-3">
-                  <button v-for="color in colors" :key="color.value" class="h-10 w-full rounded-xl border border-white/10 transition-all hover:scale-110 active:scale-95 shadow-lg" :style="{ backgroundColor: color.value === 'transparent' ? '#111' : color.value }" :class="selectedCard.color === color.value ? 'ring-2 ring-white ring-offset-4 ring-offset-black' : ''" @click="selectedCard.color = color.value"></button>
-                </div>
-              </div>
-              <div class="space-y-4">
-                <div class="text-[10px] font-black text-white/20 uppercase tracking-widest flex items-center gap-2"><Clock class="w-3 h-3" /> DEADLINE</div>
-                <Input type="date" v-model="selectedCard.dueDate" class="h-12 bg-white/5 border-white/10 text-white font-mono font-bold text-xs" />
-              </div>
-            </div>
-            <div class="p-6 bg-white/[0.02] border-t border-white/10">
-              <Button class="w-full bg-white text-black hover:bg-white/90 font-black h-14 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.1)] flex items-center justify-between px-6" @click="isCardDetailOpen = false">
-                <span>COMMIT CHANGES</span><ChevronRight class="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-
-          <!-- Blade 3: Activity Feed -->
-          <div class="w-96 bg-black/40 backdrop-blur-md border border-white/10 rounded-[2rem] flex flex-col overflow-hidden shadow-lg group/activity">
-            <div class="p-8 flex items-center justify-between border-b border-white/10"><div class="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">LOG_FEED</div><div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div></div>
-            <ScrollArea class="flex-1 p-6">
-              <div class="space-y-6">
-                <div v-for="comment in [...selectedCard.comments].reverse()" :key="comment.id" class="space-y-2 group/msg">
-                  <div class="flex items-center justify-between text-[8px] font-mono text-white/20 uppercase"><span>UID: 0x{{ comment.id.slice(0,4) }}</span><span>{{ formatDate(comment.createdAt) }}</span></div>
-                  <div class="p-4 rounded-2xl bg-white/[0.03] border border-white/5 text-xs text-white/50 leading-relaxed font-mono group-hover/msg:border-white/20 group-hover/msg:text-white/80 transition-all">{{ comment.text }}</div>
-                </div>
-              </div>
-            </ScrollArea>
-            <div class="p-6 border-t border-white/10 space-y-3">
-              <Input v-model="commentText" placeholder="Add entry..." class="bg-white/5 border-white/10 h-10 text-xs font-mono" @keyup.enter="handleAddComment" />
-              <Button v-if="commentText" class="w-full bg-white/10 hover:bg-white/20 text-white font-black text-[10px]" @click="handleAddComment">APPEND_LOG</Button>
-            </div>
+          <!-- Footer Control Bar -->
+          <div class="h-16 border-t border-white/10 bg-white/[0.02] flex items-center px-8 justify-between">
+            <Button variant="ghost" class="text-red-500 hover:bg-red-500/10 font-black text-[9px] tracking-widest" @click="store.deleteCard(boardId, selectedCardColumnId!, selectedCard.id); isCardDetailOpen = false">
+              TERMINATE_DATA_BLOCK
+            </Button>
+            <Button class="bg-white text-black hover:bg-white/90 font-black px-10 rounded-full h-10 text-[10px]" @click="isCardDetailOpen = false">
+              SAVE_AND_EXIT
+            </Button>
           </div>
         </div>
       </DialogContent>
@@ -476,9 +419,5 @@ const vFocus = {
 
 textarea {
   resize: none;
-}
-
-.shadow-2xl {
-  box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.5), 0 30px 60px -30px rgba(0, 0, 0, 0.5);
 }
 </style>
