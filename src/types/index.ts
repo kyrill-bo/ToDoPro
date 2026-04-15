@@ -16,6 +16,23 @@ export interface Comment {
   createdAt: number;
 }
 
+export interface ActivityLog {
+  id: string;
+  type: 'move' | 'create';
+  fromColumn?: string;
+  toColumn?: string;
+  createdAt: number;
+}
+
+export interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  createdAt: number;
+}
+
 export interface Card {
   id: string;
   title: string;
@@ -25,6 +42,8 @@ export interface Card {
   comments: Comment[];
   checklists: ChecklistItem[];
   tags: Tag[];
+  logs: ActivityLog[];
+  attachments: Attachment[];
   createdAt: number;
 }
 
@@ -46,4 +65,10 @@ export interface Project {
   title: string;
   description?: string;
   createdAt: number;
+}
+
+export interface AppState {
+  version: number;
+  projects: Project[];
+  boards: Board[];
 }

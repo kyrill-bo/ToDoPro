@@ -1,59 +1,91 @@
-import { app as n, ipcMain as i, BrowserWindow as c, shell as l } from "electron";
-import s from "path";
-import { fileURLToPath as u } from "url";
-import r from "fs";
-const p = u(import.meta.url), h = s.dirname(p), g = n.getPath("userData"), o = s.join(g, "db.json");
-let e = null;
-function d() {
-  r.existsSync(o) ? console.log("Database found at:", o) : (console.log("Initializing fresh DB at:", o), r.writeFileSync(o, JSON.stringify({ projects: [], boards: [] }, null, 2)));
+import { app, ipcMain, BrowserWindow, shell } from "electron";
+import path from "path";
+import { fileURLToPath } from "url";
+import fs from "fs";
+const __filename$1 = fileURLToPath(import.meta.url);
+const __dirname$1 = path.dirname(__filename$1);
+const userDataPath = app.getPath("userData");
+const DB_FILE = path.join(userDataPath, "db.json");
+let win = null;
+function initDB() {
+  if (!fs.existsSync(DB_FILE)) {
+    console.log("Initializing fresh DB at:", DB_FILE);
+    fs.writeFileSync(DB_FILE, JSON.stringify({ projects: [], boards: [] }, null, 2));
+  } else {
+    console.log("Database found at:", DB_FILE);
+  }
 }
-function m() {
-  e = new c({
+function createWindow() {
+  win = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1024,
     minHeight: 600,
     title: "ToDo Pro",
-    frame: !1,
-    transparent: !0,
+    frame: false,
+    transparent: true,
     webPreferences: {
-      nodeIntegration: !0,
-      contextIsolation: !1
+      nodeIntegration: true,
+      contextIsolation: false
     },
     backgroundColor: "#000000"
-  }), process.env.VITE_DEV_SERVER_URL ? e.loadURL(process.env.VITE_DEV_SERVER_URL) : e.loadFile(s.join(h, "../dist/index.html")), e.webContents.setWindowOpenHandler(({ url: t }) => (l.openExternal(t), { action: "deny" })), e.webContents.on("will-navigate", (t, a) => {
-    a !== (e == null ? void 0 : e.webContents.getURL()) && (t.preventDefault(), l.openExternal(a));
-  }), e.on("closed", () => {
-    e = null;
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(path.join(__dirname$1, "../dist/index.html"));
+  }
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+  win.webContents.on("will-navigate", (event, url) => {
+    if (url !== (win == null ? void 0 : win.webContents.getURL())) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+  win.on("closed", () => {
+    win = null;
   });
 }
-i.on("window-minimize", () => e == null ? void 0 : e.minimize());
-i.on("window-maximize", () => {
-  e != null && e.isMaximized() ? e.unmaximize() : e == null || e.maximize();
-});
-i.on("window-close", () => e == null ? void 0 : e.close());
-i.handle("get-data", () => {
-  try {
-    d();
-    const t = r.readFileSync(o, "utf8");
-    return console.log("Data fetched from DB."), JSON.parse(t);
-  } catch (t) {
-    return console.error("Failed to read DB:", t), { projects: [], boards: [] };
+ipcMain.on("window-minimize", () => win == null ? void 0 : win.minimize());
+ipcMain.on("window-maximize", () => {
+  if (win == null ? void 0 : win.isMaximized()) {
+    win.unmaximize();
+  } else {
+    win == null ? void 0 : win.maximize();
   }
 });
-i.handle("save-data", (t, a) => {
+ipcMain.on("window-close", () => win == null ? void 0 : win.close());
+ipcMain.handle("get-data", () => {
   try {
-    return r.writeFileSync(o, JSON.stringify(a, null, 2)), console.log("Data successfully committed to disk."), { success: !0 };
-  } catch (f) {
-    return console.error("Failed to save DB:", f), { success: !1 };
+    initDB();
+    const data = fs.readFileSync(DB_FILE, "utf8");
+    console.log("Data fetched from DB.");
+    return JSON.parse(data);
+  } catch (e) {
+    console.error("Failed to read DB:", e);
+    return { projects: [], boards: [] };
   }
 });
-n.whenReady().then(() => {
-  d(), m();
+ipcMain.handle("save-data", (event, data) => {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    console.log("Data successfully committed to disk.");
+    return { success: true };
+  } catch (e) {
+    console.error("Failed to save DB:", e);
+    return { success: false };
+  }
 });
-n.on("window-all-closed", () => {
-  process.platform !== "darwin" && n.quit();
+app.whenReady().then(() => {
+  initDB();
+  createWindow();
 });
-n.on("activate", () => {
-  c.getAllWindows().length === 0 && m();
+app.on("window-all-closed", () => {
+  if (process.platform !== "darwin") app.quit();
+});
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });

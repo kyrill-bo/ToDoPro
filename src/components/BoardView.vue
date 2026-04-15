@@ -10,6 +10,7 @@ import {
   Calendar,
   Type,
   CheckSquare,
+  FileText,
   Check,
   X,
   Terminal,
@@ -53,7 +54,7 @@ const store = useTodoStore()
 const board = computed(() => store.getBoardById(props.boardId))
 
 // --- UI STATES (Accordion Behavior) ---
-const activeSection = ref<'parameters' | 'checklist' | 'activity'>('activity')
+const activeSection = ref<'parameters' | 'checklist' | 'attachments' | 'activity'>('activity')
 
 // State for adding/editing
 const newColumnTitle = ref('')
@@ -236,6 +237,65 @@ const removeTag = (tagId: string) => {
   }
 }
 
+const dragSourceColumn = ref<{ id: string, title: string } | null>(null)
+
+const handleDragStart = (column: { id: string, title: string }) => {
+  dragSourceColumn.value = column
+}
+
+const handleCardChange = (evt: any, targetColumn: { id: string, title: string }) => {
+  if (evt.added && dragSourceColumn.value && dragSourceColumn.value.id !== targetColumn.id) {
+    store.logActivity(props.boardId, evt.added.element.id, 'move', dragSourceColumn.value.title, targetColumn.title)
+  }
+}
+
+const activityFeed = computed(() => {
+  if (!selectedCard.value) return []
+  const comments = selectedCard.value.comments.map(c => ({ ...c, activityType: 'comment' }))
+  const logs = (selectedCard.value.logs || []).map(l => ({ ...l, activityType: 'log' }))
+  return [...comments, ...logs].sort((a, b) => b.createdAt - a.createdAt)
+})
+
+const fileInput = ref<HTMLInputElement | null>(null)
+
+const handleFileUpload = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file && selectedCard.value && selectedCardColumnId.value) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const attachment = {
+        name: file.name,
+        url: reader.result as string,
+        type: file.type,
+        size: file.size
+      }
+      store.addAttachment(props.boardId, selectedCardColumnId.value!, selectedCard.value!.id, attachment)
+      selectedCard.value!.attachments.push({
+        id: crypto.randomUUID(),
+        ...attachment,
+        createdAt: Date.now()
+      })
+    }
+    reader.readAsDataURL(file)
+  }
+}
+
+const removeAttachment = (attachmentId: string) => {
+  if (selectedCard.value && selectedCardColumnId.value) {
+    store.deleteAttachment(props.boardId, selectedCardColumnId.value, selectedCard.value.id, attachmentId)
+    selectedCard.value.attachments = selectedCard.value.attachments.filter(a => a.id !== attachmentId)
+  }
+}
+
+const formatFileSize = (bytes: number) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
 const getChecklistProgress = (card: CardType) => {
   if (!card.checklists?.length) return null
   const completed = card.checklists.filter(i => i.completed).length
@@ -298,7 +358,7 @@ const vFocus = {
                 </DropdownMenu>
               </div>
               <ScrollArea class="flex-1 px-3 py-2">
-                <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-3 min-h-[200px] pb-10" ghost-class="opacity-10">
+                <draggable v-model="column.cards" group="cards" item-key="id" class="space-y-3 min-h-[200px] pb-10" ghost-class="opacity-10" @start="handleDragStart(column)" @change="(evt: any) => handleCardChange(evt, column)">
                   <template #item="{ element: card }">
                     <div class="card-item group relative transition-all cursor-pointer overflow-hidden border-t border-white/20 bg-white/[0.01] hover:bg-white/[0.04] hover:border-white/40 active:scale-[0.98] pointer-events-auto p-3 space-y-3 shadow-lg" @click="openCardDetail(card, column.id)">
                       <div v-if="getChecklistProgress(card)" class="absolute top-0 left-0 w-full h-[1px] bg-white/5 overflow-hidden">
@@ -313,6 +373,7 @@ const vFocus = {
                         <div class="flex items-center gap-3">
                           <div v-if="card.dueDate" class="flex items-center gap-1"><Calendar class="w-2.5 h-2.5" />{{ card.dueDate }}</div>
                           <div v-if="card.comments?.length" class="flex items-center gap-1"><MessageSquare class="w-2.5 h-2.5" />{{ card.comments.length }}</div>
+                          <div v-if="card.attachments?.length" class="flex items-center gap-1"><FileText class="w-2.5 h-2.5" />{{ card.attachments.length }}</div>
                         </div>
                         <div v-if="getChecklistProgress(card)" class="text-white/40">{{ getChecklistProgress(card)?.completed }}/{{ getChecklistProgress(card)?.total }}</div>
                       </div>
@@ -359,7 +420,7 @@ const vFocus = {
               <div class="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center font-black text-xs shadow-[0_0_20px_rgba(255,255,255,0.2)]">CORE</div>
               <div class="flex flex-col">
                 <span class="text-[8px] font-black text-white/20 uppercase tracking-[0.4em]">Unit_Established</span>
-                <span class="text-[10px] font-mono text-green-500/60 uppercase">Link_Active</span>
+                <span class="text-[10px] font-mono text-green-500/60 uppercase">{{ selectedCard ? formatDate(selectedCard.createdAt) : '' }}</span>
               </div>
             </div>
             <Input v-if="selectedCard" v-model="selectedCard.title" v-focus class="text-3xl font-black italic uppercase bg-transparent border-none p-0 h-auto focus-visible:ring-0 text-white tracking-tighter w-full placeholder:text-white/5" />
@@ -448,13 +509,75 @@ const vFocus = {
               <ScrollArea v-if="activeSection === 'checklist'" class="flex-1 p-8"><div class="space-y-4 animate-in fade-in slide-in-from-top-2 duration-500"><div v-for="item in selectedCard.checklists" :key="item.id" class="flex items-center gap-4 group/check"><button @click="item.completed = !item.completed" class="w-6 h-6 rounded-lg border border-white/10 flex items-center justify-center transition-all" :class="item.completed ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.2)]' : 'bg-white/5 hover:border-white/30'"><Check v-if="item.completed" class="w-4 h-4" /></button><input v-model="item.text" class="flex-1 bg-transparent border-none text-base outline-none transition-opacity" :class="item.completed ? 'text-white/20 line-through italic' : 'text-white/80'" /><button class="opacity-0 group-hover/check:opacity-100 p-1 text-white/20 hover:text-red-500 transition-all" @click="removeChecklistItem(item.id)"><Trash2 class="w-4 h-4" /></button></div><div class="flex gap-4 pt-4 border-t border-white/5 items-center"><Plus class="w-4 h-4 text-white/10" /><Input v-model="newChecklistItem" placeholder="Append sub-task..." class="bg-transparent border-none h-10 p-0 text-sm focus-visible:ring-0 placeholder:text-white/5" @keyup.enter="addChecklistItem" /></div></div></ScrollArea>
             </div>
 
+            <div class="border-b border-white/10 transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'attachments' ? 'flex-[1.5]' : 'h-16 shrink-0'">
+              <button @click="activeSection = 'attachments'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group border-t border-white/10 shrink-0">
+                <div class="flex items-center gap-4"><FileText class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Data_Packages</span></div>
+                <div v-if="activeSection !== 'attachments'" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ selectedCard.attachments?.length || 0 }} Files Injected</div>
+                <component :is="activeSection === 'attachments' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
+              </button>
+              <ScrollArea v-if="activeSection === 'attachments'" class="flex-1 p-8">
+                <div class="space-y-6 animate-in fade-in slide-in-from-top-2 duration-500">
+                  <div class="flex items-center justify-between">
+                    <div class="text-[9px] font-black text-white/20 uppercase tracking-widest">Injection_Port</div>
+                    <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" />
+                    <Button class="bg-white text-black hover:bg-white/90 font-black px-6 h-10 rounded-xl text-[10px] uppercase tracking-wider shadow-[0_0_15px_rgba(255,255,255,0.1)]" @click="fileInput?.click()">+ INJECT_DATA</Button>
+                  </div>
+                  <div class="space-y-3">
+                    <div v-for="file in selectedCard.attachments" :key="file.id" class="group/file flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-white/10 hover:bg-white/[0.04] transition-all">
+                      <div class="flex items-center gap-4 overflow-hidden">
+                        <div class="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0 group-hover/file:bg-white/10 transition-colors">
+                          <FileText class="w-5 h-5 text-white/40" />
+                        </div>
+                        <div class="flex flex-col min-w-0">
+                          <a :href="file.url" target="_blank" class="text-[11px] font-black text-white/70 hover:text-white truncate uppercase tracking-tight">{{ file.name }}</a>
+                          <span class="text-[8px] font-mono text-white/20 uppercase">{{ formatFileSize(file.size) }} // {{ formatDate(file.createdAt) }}</span>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="icon" class="h-8 w-8 opacity-0 group-hover/file:opacity-100 text-white/20 hover:text-red-500 hover:bg-red-500/10 transition-all rounded-lg" @click="removeAttachment(file.id)">
+                        <Trash2 class="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <div v-if="!selectedCard.attachments?.length" class="h-32 rounded-2xl border border-dashed border-white/5 flex flex-col items-center justify-center gap-3 text-white/10">
+                      <FileText class="w-8 h-8 opacity-20" />
+                      <span class="text-[8px] font-black uppercase tracking-[0.3em]">No_Data_Packages_Detected</span>
+                    </div>
+                  </div>
+                </div>
+              </ScrollArea>
+            </div>
+
             <div class="transition-all duration-500 overflow-hidden flex flex-col" :class="activeSection === 'activity' ? 'flex-[1.5]' : 'h-16 shrink-0'">
               <button @click="activeSection = 'activity'" class="w-full h-16 px-8 flex items-center justify-between hover:bg-white/[0.03] transition-colors group border-t border-white/10 shrink-0">
                 <div class="flex items-center gap-4"><Activity class="w-4 h-4 text-white/20 group-hover:text-white transition-colors" /><span class="text-[10px] font-black uppercase tracking-[0.3em]">Neural_Feed</span></div>
-                <div v-if="activeSection !== 'activity'" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ selectedCard.comments.length }} Entry Points</div>
+                <div v-if="activeSection !== 'activity'" class="text-[9px] font-bold text-white/20 uppercase italic truncate ml-4">{{ activityFeed.length }} Entry Points</div>
                 <component :is="activeSection === 'activity' ? ChevronUp : ChevronDown" class="w-4 h-4 text-white/10" />
               </button>
-              <div v-if="activeSection === 'activity'" class="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2 duration-500"><ScrollArea class="flex-1 p-8"><div class="space-y-8"><div v-for="comment in [...selectedCard.comments].reverse()" :key="comment.id" class="space-y-2 group/msg"><div class="flex items-center justify-between text-[8px] font-mono text-white/20 uppercase tracking-widest"><span>UID: {{ comment.id.slice(0,8).toUpperCase() }}</span><span>{{ formatDate(comment.createdAt) }}</span></div><div class="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-sm text-white/50 leading-relaxed font-mono group-hover/msg:border-white/20 group-hover/msg:text-white/80 transition-all shadow-inner">{{ comment.text }}</div></div></div></ScrollArea><div class="p-8 border-t border-white/10 bg-white/[0.01]"><Input v-model="commentText" placeholder="Inject thought stream..." class="bg-white/5 border-white/10 h-12 text-sm font-mono rounded-xl px-6" @keyup.enter="handleAddComment" /></div></div>
+              <div v-if="activeSection === 'activity'" class="flex-1 flex flex-col min-h-0 animate-in fade-in slide-in-from-top-2 duration-500">
+                <ScrollArea class="flex-1 p-8">
+                  <div class="space-y-8">
+                    <div v-for="item in activityFeed" :key="item.id" class="space-y-2 group/msg">
+                      <div class="flex items-center justify-between text-[8px] font-mono text-white/20 uppercase tracking-widest">
+                        <span>UID: {{ item.id.slice(0,8).toUpperCase() }}</span>
+                        <span>{{ formatDate(item.createdAt) }}</span>
+                      </div>
+                      
+                      <div v-if="(item as any).activityType === 'comment'" class="p-5 rounded-2xl bg-white/[0.02] border border-white/5 text-sm text-white/50 leading-relaxed font-mono group-hover/msg:border-white/20 group-hover/msg:text-white/80 transition-all shadow-inner">
+                        {{ (item as any).text }}
+                      </div>
+                      
+                      <div v-else class="p-4 rounded-xl bg-white/[0.01] border border-dashed border-white/10 text-[10px] text-white/30 font-mono italic flex items-center gap-3">
+                        <Activity v-if="(item as any).type === 'move'" class="w-3 h-3" />
+                        <Plus v-else class="w-3 h-3" />
+                        <span v-if="(item as any).type === 'create'">ENTITY_CREATED in Sector: {{ (item as any).toColumn }}</span>
+                        <span v-else>SECTOR_TRANSITION: {{ (item as any).fromColumn }} -> {{ (item as any).toColumn }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+                <div class="p-8 border-t border-white/10 bg-white/[0.01]">
+                  <Input v-model="commentText" placeholder="Inject thought stream..." class="bg-white/5 border-white/10 h-12 text-sm font-mono rounded-xl px-6" @keyup.enter="handleAddComment" />
+                </div>
+              </div>
             </div>
           </div>
         </div>

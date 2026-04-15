@@ -1,11 +1,56 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
-import type { Project, Board, Card } from '@/types'
+import type { Project, Board, Card, AppState } from '@/types'
 
 export const useTodoStore = defineStore('todo', () => {
   const projects = ref<Project[]>([])
   const boards = ref<Board[]>([])
   const isInitialLoad = ref(true)
+
+  const CURRENT_DB_VERSION = 2
+
+  const migrateData = (data: any): AppState => {
+    let version = data.version || 0
+    const projects = data.projects || []
+    const boards = data.boards || []
+
+    if (version < 1) {
+      console.log('Migrating DB to version 1...')
+      const now = Date.now()
+      boards.forEach((board: any) => {
+        board.columns?.forEach((column: any) => {
+          column.cards?.forEach((card: any) => {
+            if (!card.createdAt) card.createdAt = now
+            if (!card.logs) {
+              card.logs = [
+                {
+                  id: crypto.randomUUID(),
+                  type: 'create',
+                  createdAt: card.createdAt,
+                  toColumn: column.title
+                }
+              ]
+            }
+          })
+        })
+      })
+      version = 1
+    }
+
+    if (version < 2) {
+      console.log('Migrating DB to version 2 (Attachments)...')
+      boards.forEach((board: any) => {
+        board.columns?.forEach((column: any) => {
+          column.cards?.forEach((card: any) => {
+            if (!card.attachments) card.attachments = []
+          })
+        })
+      })
+      version = 2
+    }
+
+    return { version, projects, boards }
+  }
 
   const getIpcRenderer = () => {
     const w = window as any
@@ -29,7 +74,7 @@ export const useTodoStore = defineStore('todo', () => {
     return response.json()
   }
 
-  const saveToApi = async (data: { projects: Project[], boards: Board[] }) => {
+  const saveToApi = async (data: AppState) => {
     const response = await fetch(`${API_BASE_URL}/save`, {
       method: 'POST',
       headers: {
@@ -50,8 +95,9 @@ export const useTodoStore = defineStore('todo', () => {
         const ipcRenderer = getIpcRenderer()
         const data = ipcRenderer ? await ipcRenderer.invoke('get-data') : null
         if (data) {
-          projects.value = data.projects || []
-          boards.value = data.boards || []
+          const migrated = migrateData(data)
+          projects.value = migrated.projects
+          boards.value = migrated.boards
           console.log('Electron DB synced successfully.')
         }
       } catch (e) {
@@ -60,16 +106,18 @@ export const useTodoStore = defineStore('todo', () => {
     } else {
       try {
         const data = await loadFromApi()
-        projects.value = data.projects || []
-        boards.value = data.boards || []
+        const migrated = migrateData(data)
+        projects.value = migrated.projects
+        boards.value = migrated.boards
         console.log('Server DB synced successfully.')
       } catch (e) {
         console.warn('Failed to load from local API, using localStorage fallback:', e)
         const data = localStorage.getItem('todo-pro-data')
         if (data) {
           const parsed = JSON.parse(data)
-          projects.value = parsed.projects || []
-          boards.value = parsed.boards || []
+          const migrated = migrateData(parsed)
+          projects.value = migrated.projects
+          boards.value = migrated.boards
         }
       }
     }
@@ -84,7 +132,8 @@ export const useTodoStore = defineStore('todo', () => {
   const saveData = async () => {
     if (isInitialLoad.value) return
 
-    const data = {
+    const data: AppState = {
+      version: CURRENT_DB_VERSION,
       projects: projects.value,
       boards: boards.value
     }
@@ -172,6 +221,7 @@ export const useTodoStore = defineStore('todo', () => {
     if (board) {
       const column = board.columns.find(c => c.id === columnId)
       if (column) {
+        const now = Date.now()
         column.cards.push({
           id: crypto.randomUUID(),
           title,
@@ -180,8 +230,37 @@ export const useTodoStore = defineStore('todo', () => {
           tags: [],
           checklists: [],
           comments: [],
-          createdAt: Date.now()
+          attachments: [],
+          logs: [
+            {
+              id: crypto.randomUUID(),
+              type: 'create',
+              createdAt: now,
+              toColumn: column.title
+            }
+          ],
+          createdAt: now
         })
+      }
+    }
+  }
+
+  const logActivity = (boardId: string, cardId: string, type: 'move' | 'create', fromColumn?: string, toColumn?: string) => {
+    const board = boards.value.find(b => b.id === boardId)
+    if (board) {
+      for (const column of board.columns) {
+        const card = column.cards.find(c => c.id === cardId)
+        if (card) {
+          if (!card.logs) card.logs = []
+          card.logs.push({
+            id: crypto.randomUUID(),
+            type,
+            fromColumn,
+            toColumn,
+            createdAt: Date.now()
+          })
+          break
+        }
       }
     }
   }
@@ -216,13 +295,45 @@ export const useTodoStore = defineStore('todo', () => {
     }
   }
 
+  const addAttachment = (boardId: string, columnId: string, cardId: string, file: { name: string, url: string, type: string, size: number }) => {
+    const board = boards.value.find(b => b.id === boardId)
+    if (board) {
+      const column = board.columns.find(c => c.id === columnId)
+      if (column) {
+        const card = column.cards.find(c => c.id === cardId)
+        if (card) {
+          if (!card.attachments) card.attachments = []
+          card.attachments.push({
+            id: crypto.randomUUID(),
+            ...file,
+            createdAt: Date.now()
+          })
+        }
+      }
+    }
+  }
+
+  const deleteAttachment = (boardId: string, columnId: string, cardId: string, attachmentId: string) => {
+    const board = boards.value.find(b => b.id === boardId)
+    if (board) {
+      const column = board.columns.find(c => c.id === columnId)
+      if (column) {
+        const card = column.cards.find(c => c.id === cardId)
+        if (card) {
+          card.attachments = card.attachments.filter(a => a.id !== attachmentId)
+        }
+      }
+    }
+  }
+
   const getBoardsByProject = (projectId: string) => boards.value.filter(b => b.projectId === projectId)
   const getBoardById = (id: string) => boards.value.find(b => b.id === id)
 
-  const importData = (data: { projects: Project[], boards: Board[] }) => {
+  const importData = (data: any) => {
     isInitialLoad.value = true
-    projects.value = data.projects
-    boards.value = data.boards
+    const migrated = migrateData(data)
+    projects.value = migrated.projects
+    boards.value = migrated.boards
     setTimeout(() => {
       isInitialLoad.value = false
       saveData()
@@ -244,7 +355,7 @@ export const useTodoStore = defineStore('todo', () => {
   return {
     projects, boards, addProject, updateProject, deleteProject,
     addBoard, updateBoard, deleteBoard, addColumn, updateColumn, deleteColumn,
-    addCard, updateCard, deleteCard, addComment, getBoardsByProject, getBoardById,
+    addCard, updateCard, deleteCard, addComment, addAttachment, deleteAttachment, logActivity, getBoardsByProject, getBoardById,
     importData, loadData, clearData
   }
 })
